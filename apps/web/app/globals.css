@@ -1,0 +1,267 @@
+:root {
+  --bg: #f3f6fb;
+  --text: #14233d;
+  --card: #ffffff;
+  --line: #d5dfec;
+  --brand: #1f6feb;
+  --brand-bg: #eaf2ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: linear-gradient(180deg, #f0f5ff 0%, #f8fbff 30%, #f4f7fb 100%);
+  font-family: "Microsoft YaHei UI", "PingFang SC", "Segoe UI", sans-serif;
+}
+
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 20px 56px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 32px;
+}
+
+.card {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 22px rgba(31, 61, 120, 0.05);
+}
+
+pre {
+  margin: 0;
+  overflow-x: auto;
+}
+
+.cnNav {
+  margin: 16px 0 18px;
+}
+
+.quickNavRow {
+  display: flex;
+  overflow-x: auto;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.quickNavItem {
+  text-decoration: none;
+  color: #184891;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #ffffff;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.groupNavGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.groupNavCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.groupNavCard h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #39557f;
+}
+
+.groupNavLinks {
+  display: grid;
+  gap: 6px;
+}
+
+.groupNavItem {
+  display: grid;
+  text-decoration: none;
+  border: 1px solid #e6edf7;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fbfdff;
+}
+
+.groupNavItem span {
+  color: #143768;
+  font-size: 13px;
+}
+
+.groupNavItem small {
+  margin-top: 2px;
+  color: #7083a3;
+  font-size: 11px;
+}
+
+.activeNavItem {
+  border-color: var(--brand);
+  background: var(--brand-bg);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 6px;
+  text-align: left;
+  font-size: 14px;
+}
+
+@media (max-width: 960px) {
+  .container {
+    padding: 18px 14px 36px;
+  }
+
+  h1 {
+    font-size: 26px;
+  }
+
+  .groupNavGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stateBanner {
+  margin: 10px 0 14px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #f5f9ff;
+  font-size: 13px;
+}
+
+.state-ready {
+  border-color: #b8d8b8;
+  background: #f3fbf3;
+}
+
+.state-empty {
+  border-color: #d9d3b1;
+  background: #fffdf3;
+}
+
+.state-error {
+  border-color: #efc1c1;
+  background: #fff4f4;
+}
+
+.state-partial_error {
+  border-color: #f0d29b;
+  background: #fff8eb;
+}
+
+.actionPanel {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f7fbff;
+}
+
+.actionPanel h3 {
+  margin: 0 0 8px;
+}
+
+.actionPanel p {
+  margin: 4px 0 8px;
+  font-size: 13px;
+}
+
+.fieldGrid {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.formRow {
+  display: grid;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  color: #2d4366;
+}
+
+.fieldInput {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+  background: #ffffff;
+}
+
+.fieldCheckbox {
+  width: 16px;
+  height: 16px;
+}
+
+.payloadInput {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  background: #ffffff;
+}
+
+.pathInput {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  background: #ffffff;
+  margin-bottom: 8px;
+}
+
+.actionButton {
+  margin-top: 8px;
+  border: 1px solid #0e3a8a;
+  border-radius: 8px;
+  background: #0e3a8a;
+  color: #ffffff;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.actionButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.inputError {
+  color: #b91c1c;
+  font-size: 12px;
+  margin: 6px 0 0;
+}

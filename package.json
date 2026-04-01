@@ -1,0 +1,11 @@
+{
+  "name": "stock-assistant-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "test:e2e": "playwright test tests/e2e/smoke.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.59.0"
+  }
+}
