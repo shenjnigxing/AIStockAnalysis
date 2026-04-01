@@ -1,5 +1,4 @@
 import { AutoRefresh } from "../components/auto-refresh";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
@@ -11,17 +10,16 @@ export default async function SettingsPage() {
 
   return (
     <main className="container">
-      <h1>Settings</h1>
-      <NavBar />
+      <h1>设置中心</h1>
       <AutoRefresh intervalSeconds={30} />
-      <PageStateBanner state={pageState} detail={`items=${items.length}`} />
+      <PageStateBanner state={pageState} detail={`配置项数=${items.length}`} />
       <div className="card">
-        <p>Loaded configs: {items.length}</p>
+        <p>已加载配置：{items.length}</p>
         <table className="table">
           <thead>
             <tr>
-              <th>Key</th>
-              <th>Value</th>
+              <th>配置键</th>
+              <th>配置值</th>
             </tr>
           </thead>
           <tbody>

@@ -1,6 +1,5 @@
 import { AutoRefresh } from "../components/auto-refresh";
 import { ApiActionFieldsForm } from "../components/api-action-fields-form";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
@@ -21,42 +20,41 @@ export default async function BacktestsPage() {
 
   return (
     <main className="container">
-      <h1>Backtest Center</h1>
-      <NavBar />
+      <h1>回测中心</h1>
       <AutoRefresh intervalSeconds={30} />
-      <PageStateBanner state={pageState} detail={`jobs=${jobs.length}`} />
+      <PageStateBanner state={pageState} detail={`任务数=${jobs.length}`} />
       <div className="grid">
         <div className="card">
-          <h2>Quick Actions</h2>
+          <h2>快捷操作</h2>
           <ApiActionFieldsForm
-            title="Run Backtest"
+            title="运行回测"
             path="/api/backtest/run"
             fields={[
-              { name: "name", label: "Job Name", kind: "text", defaultValue: "ui-backtest" },
-              { name: "initial_cash", label: "Initial Cash", kind: "number", defaultValue: 1000000 }
+              { name: "name", label: "任务名称", kind: "text", defaultValue: "日内回测任务" },
+              { name: "initial_cash", label: "初始资金", kind: "number", defaultValue: 1000000 }
             ]}
-            buttonText="Run Backtest"
+            buttonText="执行回测"
           />
           <ApiActionFieldsForm
-            title="Compare Backtests"
+            title="对比回测"
             path="/api/backtest/compare"
             fields={[
-              { name: "left_job_id", label: "Left Job ID", kind: "number", defaultValue: 1 },
-              { name: "right_job_id", label: "Right Job ID", kind: "number", defaultValue: 2 }
+              { name: "left_job_id", label: "左侧任务ID", kind: "number", defaultValue: 1 },
+              { name: "right_job_id", label: "右侧任务ID", kind: "number", defaultValue: 2 }
             ]}
-            buttonText="Compare Jobs"
+            buttonText="执行对比"
           />
         </div>
         <div className="card">
-          <h2>Backtest Jobs</h2>
-          <p>Count: {jobs.length}</p>
+          <h2>回测任务列表</h2>
+          <p>数量：{jobs.length}</p>
           <table className="table">
             <thead>
               <tr>
-                <th>Job ID</th>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Type</th>
+                <th>编号</th>
+                <th>名称</th>
+                <th>状态</th>
+                <th>类型</th>
               </tr>
             </thead>
             <tbody>
@@ -72,17 +70,17 @@ export default async function BacktestsPage() {
           </table>
         </div>
         <div className="card">
-          <h2>Latest Report Metrics</h2>
+          <h2>最新回测指标</h2>
           {!latestJob ? (
-            <p>No backtest job yet. Trigger `/api/backtest/run` first.</p>
+            <p>暂无回测任务，请先执行回测。</p>
           ) : !report ? (
-            <p>Unable to load report for job #{String(latestJob.job_id)}.</p>
+            <p>无法读取任务 #{String(latestJob.job_id)} 的报告。</p>
           ) : (
             <table className="table">
               <thead>
                 <tr>
-                  <th>Metric</th>
-                  <th>Value</th>
+                  <th>指标</th>
+                  <th>值</th>
                 </tr>
               </thead>
               <tbody>

@@ -1,7 +1,7 @@
 {
-  "name": "Stock Assistant",
-  "short_name": "StockAI",
-  "description": "Personal stock analysis and trading assistant",
+  "name": "股票投研交易助手",
+  "short_name": "股票助手",
+  "description": "个人股票分析、推荐、回测与交易辅助系统",
   "start_url": "/",
   "display": "standalone",
   "display_override": ["standalone", "browser"],

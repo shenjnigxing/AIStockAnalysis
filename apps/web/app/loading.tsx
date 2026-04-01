@@ -1,9 +1,9 @@
 export default function AppLoading() {
   return (
     <main className="container">
-      <h1>Loading</h1>
+      <h1>加载中</h1>
       <div className="card">
-        <p>Loading latest market and trading data...</p>
+        <p>正在加载最新市场与交易数据...</p>
       </div>
     </main>
   );

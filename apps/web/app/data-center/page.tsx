@@ -1,6 +1,5 @@
 import { AutoRefresh } from "../components/auto-refresh";
 import { ApiActionFieldsForm } from "../components/api-action-fields-form";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
@@ -16,21 +15,20 @@ export default async function DataCenterPage() {
 
   return (
     <main className="container">
-      <h1>Data Center</h1>
-      <NavBar />
+      <h1>数据中心</h1>
       <AutoRefresh intervalSeconds={20} />
-      <PageStateBanner state={pageState} detail={`jobs=${jobs.length}; issues=${issues.length}`} />
+      <PageStateBanner state={pageState} detail={`任务数=${jobs.length}; 问题数=${issues.length}`} />
       <div className="grid">
         <div className="card">
-          <h2>Sync Jobs</h2>
-          <p>Count: {jobs.length}</p>
+          <h2>同步任务</h2>
+          <p>数量：{jobs.length}</p>
           <table className="table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Result</th>
+                <th>编号</th>
+                <th>类型</th>
+                <th>状态</th>
+                <th>结果</th>
               </tr>
             </thead>
             <tbody>
@@ -46,15 +44,15 @@ export default async function DataCenterPage() {
           </table>
         </div>
         <div className="card">
-          <h2>Quality Issues</h2>
-          <p>Count: {issues.length}</p>
+          <h2>数据质量问题</h2>
+          <p>数量：{issues.length}</p>
           <table className="table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Type</th>
-                <th>Symbol</th>
-                <th>Detail</th>
+                <th>编号</th>
+                <th>类型</th>
+                <th>代码</th>
+                <th>详情</th>
               </tr>
             </thead>
             <tbody>
@@ -70,27 +68,27 @@ export default async function DataCenterPage() {
           </table>
         </div>
         <div className="card">
-          <h2>Quick Actions</h2>
+          <h2>快捷操作</h2>
           <ApiActionFieldsForm
-            title="Sync Master Data"
+            title="同步主数据"
             path="/api/data/sync/master"
             fields={[
-              { name: "force_full", label: "Force Full", kind: "boolean", defaultValue: false }
+              { name: "force_full", label: "强制全量同步", kind: "boolean", defaultValue: false }
             ]}
-            buttonText="Run Master Sync"
+            buttonText="执行主数据同步"
           />
           <ApiActionFieldsForm
-            title="Sync Realtime Snapshot"
+            title="同步实时快照"
             path="/api/data/sync/realtime"
             fields={[
               {
                 name: "symbols",
-                label: "Symbols (comma separated)",
+                label: "股票代码（逗号分隔）",
                 kind: "csv",
                 defaultValue: "000001,600000"
               }
             ]}
-            buttonText="Run Realtime Sync"
+            buttonText="执行实时同步"
           />
         </div>
       </div>

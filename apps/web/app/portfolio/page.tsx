@@ -1,5 +1,4 @@
 import { AutoRefresh } from "../components/auto-refresh";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
@@ -25,47 +24,46 @@ export default async function PortfolioPage() {
 
   return (
     <main className="container">
-      <h1>Portfolio</h1>
-      <NavBar />
+      <h1>资产持仓</h1>
       <AutoRefresh intervalSeconds={20} />
-      <PageStateBanner state={pageState} detail={`liveSnapshots=${liveAssets.length}`} />
+      <PageStateBanner state={pageState} detail={`实盘快照数=${liveAssets.length}`} />
       <div className="grid">
         <div className="card">
-          <h2>Paper Account</h2>
+          <h2>仿真账户</h2>
           <table className="table">
             <tbody>
               <tr>
-                <th>Total Assets</th>
+                <th>总资产</th>
                 <td>{paperAsset.total_assets}</td>
               </tr>
               <tr>
-                <th>Cash</th>
+                <th>可用资金</th>
                 <td>{paperAsset.cash}</td>
               </tr>
               <tr>
-                <th>Total PnL</th>
+                <th>累计盈亏</th>
                 <td>{paperAsset.total_pnl}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div className="card">
-          <h2>Live Snapshot</h2>
+          <h2>实盘快照</h2>
           {!liveAsset ? (
-            <p>No live snapshot yet.</p>
+            <p>暂无实盘快照。</p>
           ) : (
             <table className="table">
               <tbody>
                 <tr>
-                  <th>Total Assets</th>
+                  <th>总资产</th>
                   <td>{String(liveAsset.total_assets)}</td>
                 </tr>
                 <tr>
-                  <th>Cash</th>
+                  <th>可用资金</th>
                   <td>{String(liveAsset.cash)}</td>
                 </tr>
                 <tr>
-                  <th>Market Value</th>
+                  <th>持仓市值</th>
                   <td>{String(liveAsset.market_value)}</td>
                 </tr>
               </tbody>

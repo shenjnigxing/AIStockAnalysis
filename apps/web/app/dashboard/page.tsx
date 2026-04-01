@@ -1,21 +1,19 @@
 import { AutoRefresh } from "../components/auto-refresh";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
 
 export default async function DashboardPage() {
   const [statusRes, recsRes] = await Promise.all([
-    fetchApiResult("/api/system/status", { status: "unreachable" }),
+    fetchApiResult("/api/system/status", { status: "不可达" }),
     fetchApiResult("/api/recommendation/top?limit=20", { items: [] as Array<Record<string, unknown>> })
   ]);
   const recs = recsRes.data.items;
-  const pageState = resolvePageState([statusRes, recsRes], recs.length > 0 && statusRes.data.status !== "unreachable");
+  const pageState = resolvePageState([statusRes, recsRes], recs.length > 0 && statusRes.data.status !== "不可达");
 
   return (
     <main className="container">
       <h1>总览看板</h1>
-      <NavBar />
       <AutoRefresh intervalSeconds={20} />
       <PageStateBanner state={pageState} detail={`推荐条数=${recs.length}`} />
       <div className="grid">
@@ -24,7 +22,7 @@ export default async function DashboardPage() {
           <pre>{JSON.stringify(statusRes.data, null, 2)}</pre>
         </div>
         <div className="card">
-          <h2>推荐榜（Top）</h2>
+          <h2>推荐榜单</h2>
           <p>数量：{recs.length}</p>
           <table className="table">
             <thead>

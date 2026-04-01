@@ -73,7 +73,7 @@ export function ApiActionFieldsForm({
   pathTemplate,
   fields,
   method = "POST",
-  buttonText = "Execute",
+  buttonText = "执行",
   refreshAfterSuccess = true
 }: {
   title: string;

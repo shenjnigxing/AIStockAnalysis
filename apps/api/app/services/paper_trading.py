@@ -12,6 +12,9 @@ class PaperTradingService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.risk = RiskService(db)
+        self.commission_rate = 0.0003
+        self.stamp_tax_rate = 0.001
+        self.slippage_rate = 0.0008
 
     def ensure_account(self) -> PaperAccount:
         account = self.db.scalar(select(PaperAccount).order_by(PaperAccount.id))
@@ -54,6 +57,12 @@ class PaperTradingService:
             self.db.commit()
             self.db.refresh(order)
             return order
+        if preview["decision"] == "manual_review_required":
+            order.status = "created"
+            write_audit(self.db, action="paper.place", detail=f"order_id={order.id}; final_status=manual_review_required")
+            self.db.commit()
+            self.db.refresh(order)
+            return order
 
         filled = self._match(order)
         if not filled:
@@ -71,14 +80,8 @@ class PaperTradingService:
 
     def _match(self, order: PaperOrder) -> bool:
         account = self.ensure_account()
-        trade = PaperTrade(
-            order_id=order.id,
-            symbol=order.symbol,
-            side=order.side,
-            price=order.price,
-            quantity=order.quantity,
-        )
-        cost = order.price * order.quantity
+        if order.quantity < 100 and order.side == "buy":
+            return False
 
         position = self.db.scalar(
             select(PaperPosition).where(PaperPosition.account_id == account.id, PaperPosition.symbol == order.symbol)
@@ -89,20 +92,43 @@ class PaperTradingService:
             self.db.flush()
 
         if order.side == "buy":
-            if account.cash < cost:
+            execution_price = order.price * (1 + self.slippage_rate)
+            gross = execution_price * order.quantity
+            commission = max(5.0, gross * self.commission_rate)
+            total_cost = gross + commission
+            if account.cash < total_cost:
                 return False
             new_qty = position.quantity + order.quantity
-            new_avg = (position.quantity * position.avg_price + cost) / max(new_qty, 1)
+            new_avg = (position.quantity * position.avg_price + gross + commission) / max(new_qty, 1)
             position.quantity = new_qty
             position.avg_price = round(new_avg, 4)
-            account.cash -= cost
+            account.cash -= total_cost
+            trade = PaperTrade(
+                order_id=order.id,
+                symbol=order.symbol,
+                side=order.side,
+                price=round(execution_price, 4),
+                quantity=order.quantity,
+            )
         else:
             if position.quantity < order.quantity:
                 return False
+            execution_price = order.price * (1 - self.slippage_rate)
+            gross = execution_price * order.quantity
+            commission = max(5.0, gross * self.commission_rate)
+            stamp_tax = gross * self.stamp_tax_rate
+            net = gross - commission - stamp_tax
             position.quantity -= order.quantity
-            account.cash += cost
+            account.cash += net
             if position.quantity == 0:
                 position.avg_price = 0
+            trade = PaperTrade(
+                order_id=order.id,
+                symbol=order.symbol,
+                side=order.side,
+                price=round(execution_price, 4),
+                quantity=order.quantity,
+            )
 
         self.db.add(trade)
         self._recalc_account(account.id)

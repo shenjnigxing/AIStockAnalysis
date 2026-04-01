@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { NavBar } from "./components/nav";
 import { fetchSystemStatus } from "../lib/api";
 
 export default async function HomePage() {
@@ -10,7 +9,6 @@ export default async function HomePage() {
     <main className="container">
       <h1>股票投研交易助手</h1>
       <p>本地化股票投研与交易助手。支持数据同步、策略评估、推荐、回测、仿真与实盘辅助。</p>
-      <NavBar />
       <div className="grid">
         <div className="card">
           <h2>系统状态</h2>

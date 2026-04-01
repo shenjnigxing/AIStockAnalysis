@@ -1,5 +1,4 @@
 import { AutoRefresh } from "../../components/auto-refresh";
-import { NavBar } from "../../components/nav";
 import { PageStateBanner } from "../../components/page-state-banner";
 import { fetchApiResult } from "../../../lib/api";
 import { resolvePageState } from "../../../lib/view-state";
@@ -21,30 +20,29 @@ export default async function StockDetailPage({ params }: { params: { symbol: st
 
   return (
     <main className="container">
-      <h1>Stock Detail: {params.symbol}</h1>
-      <NavBar />
+      <h1>个股详情：{params.symbol}</h1>
       <AutoRefresh intervalSeconds={20} />
-      <PageStateBanner state={pageState} detail={`symbol=${params.symbol}`} />
+      <PageStateBanner state={pageState} detail={`股票=${params.symbol}`} />
       <div className="card">
         {!recommendation ? (
-          <p>No recommendation snapshot found yet. Run `/api/recommendation/run` first.</p>
+          <p>暂无推荐快照，请先执行“推荐运行”。</p>
         ) : (
           <table className="table">
             <tbody>
               <tr>
-                <th>Level</th>
+                <th>推荐等级</th>
                 <td>{recommendation.recommendation_level}</td>
               </tr>
               <tr>
-                <th>Total Score</th>
+                <th>总分</th>
                 <td>{recommendation.total_score}</td>
               </tr>
               <tr>
-                <th>Rank</th>
+                <th>排名</th>
                 <td>{recommendation.final_rank}</td>
               </tr>
               <tr>
-                <th>Action</th>
+                <th>操作建议</th>
                 <td>{recommendation.action_suggestion}</td>
               </tr>
             </tbody>

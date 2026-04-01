@@ -1,6 +1,5 @@
 import { AutoRefresh } from "../components/auto-refresh";
 import { ApiActionFieldsForm } from "../components/api-action-fields-form";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
@@ -27,33 +26,32 @@ export default async function PaperTradingPage() {
 
   return (
     <main className="container">
-      <h1>Paper Trading</h1>
-      <NavBar />
+      <h1>仿真交易</h1>
       <AutoRefresh intervalSeconds={15} />
-      <PageStateBanner state={pageState} detail={`orders=${orders.length}; positions=${positions.length}`} />
+      <PageStateBanner state={pageState} detail={`订单数=${orders.length}; 持仓数=${positions.length}`} />
       <div className="grid">
         <div className="card">
-          <h2>Trade Actions</h2>
+          <h2>交易操作</h2>
           <ApiActionFieldsForm
-            title="Preview Order"
+            title="下单预检"
             path="/api/paper/order/preview"
             fields={[
-              { name: "symbol", label: "Symbol", kind: "text", defaultValue: "000001", required: true },
+              { name: "symbol", label: "股票代码", kind: "text", defaultValue: "000001", required: true },
               {
                 name: "side",
-                label: "Side",
+                label: "方向",
                 kind: "select",
                 defaultValue: "buy",
                 options: [
-                  { label: "Buy", value: "buy" },
-                  { label: "Sell", value: "sell" }
+                  { label: "买入", value: "buy" },
+                  { label: "卖出", value: "sell" }
                 ]
               },
-              { name: "price", label: "Price", kind: "number", defaultValue: 10, required: true },
-              { name: "quantity", label: "Quantity", kind: "number", defaultValue: 100, required: true },
+              { name: "price", label: "价格", kind: "number", defaultValue: 10, required: true },
+              { name: "quantity", label: "数量", kind: "number", defaultValue: 100, required: true },
               {
                 name: "recommendation_level",
-                label: "Recommendation Level",
+                label: "推荐等级",
                 kind: "select",
                 defaultValue: "B",
                 options: [
@@ -64,28 +62,28 @@ export default async function PaperTradingPage() {
                 ]
               }
             ]}
-            buttonText="Preview"
+            buttonText="执行预检"
           />
           <ApiActionFieldsForm
-            title="Place Order"
+            title="提交订单"
             path="/api/paper/orders"
             fields={[
-              { name: "symbol", label: "Symbol", kind: "text", defaultValue: "000001", required: true },
+              { name: "symbol", label: "股票代码", kind: "text", defaultValue: "000001", required: true },
               {
                 name: "side",
-                label: "Side",
+                label: "方向",
                 kind: "select",
                 defaultValue: "buy",
                 options: [
-                  { label: "Buy", value: "buy" },
-                  { label: "Sell", value: "sell" }
+                  { label: "买入", value: "buy" },
+                  { label: "卖出", value: "sell" }
                 ]
               },
-              { name: "price", label: "Price", kind: "number", defaultValue: 10, required: true },
-              { name: "quantity", label: "Quantity", kind: "number", defaultValue: 100, required: true },
+              { name: "price", label: "价格", kind: "number", defaultValue: 10, required: true },
+              { name: "quantity", label: "数量", kind: "number", defaultValue: 100, required: true },
               {
                 name: "recommendation_level",
-                label: "Recommendation Level",
+                label: "推荐等级",
                 kind: "select",
                 defaultValue: "B",
                 options: [
@@ -96,49 +94,49 @@ export default async function PaperTradingPage() {
                 ]
               }
             ]}
-            buttonText="Place"
+            buttonText="提交下单"
           />
           <ApiActionFieldsForm
-            title="Cancel Order"
+            title="撤销订单"
             path="/api/paper/orders/{order_id}/cancel"
             pathTemplate="/api/paper/orders/{order_id}/cancel"
             fields={[
-              { name: "order_id", label: "Order ID", kind: "number", defaultValue: 1, includeInPayload: false, required: true }
+              { name: "order_id", label: "订单ID", kind: "number", defaultValue: 1, includeInPayload: false, required: true }
             ]}
-            buttonText="Cancel #1"
+            buttonText="执行撤单"
           />
         </div>
         <div className="card">
-          <h2>Assets</h2>
+          <h2>账户资产</h2>
           <table className="table">
             <tbody>
               <tr>
-                <th>Total Assets</th>
+                <th>总资产</th>
                 <td>{asset.total_assets}</td>
               </tr>
               <tr>
-                <th>Cash</th>
+                <th>可用资金</th>
                 <td>{asset.cash}</td>
               </tr>
               <tr>
-                <th>Market Value</th>
+                <th>持仓市值</th>
                 <td>{asset.market_value}</td>
               </tr>
               <tr>
-                <th>Total PnL</th>
+                <th>累计盈亏</th>
                 <td>{asset.total_pnl}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <div className="card">
-          <h2>Positions</h2>
+          <h2>当前持仓</h2>
           <table className="table">
             <thead>
               <tr>
-                <th>Symbol</th>
-                <th>Qty</th>
-                <th>Avg Price</th>
+                <th>代码</th>
+                <th>数量</th>
+                <th>持仓成本</th>
               </tr>
             </thead>
             <tbody>
@@ -153,14 +151,14 @@ export default async function PaperTradingPage() {
           </table>
         </div>
         <div className="card">
-          <h2>Recent Orders</h2>
+          <h2>最近订单</h2>
           <table className="table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Symbol</th>
-                <th>Side</th>
-                <th>Status</th>
+                <th>编号</th>
+                <th>代码</th>
+                <th>方向</th>
+                <th>状态</th>
               </tr>
             </thead>
             <tbody>

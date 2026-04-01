@@ -17,13 +17,15 @@ class LiveTradingService:
 
     def preview(self, symbol: str, side: str, price: float, quantity: int, recommendation_level: str = "C") -> OrderPreview:
         risk = self.risk.evaluate_order(symbol, side, price, quantity, recommendation_level=recommendation_level)
+        broker_preview = self.broker.preview_order({"symbol": symbol, "side": side, "price": price, "quantity": quantity})
+        summary = f"{risk['summary']}; broker={broker_preview.get('status', 'unknown')}"
         preview = OrderPreview(
             symbol=symbol,
             side=side.lower(),
             price=price,
             quantity=quantity,
             decision=risk["decision"],
-            summary=risk["summary"],
+            summary=summary,
         )
         self.db.add(preview)
         write_audit(
@@ -43,6 +45,12 @@ class LiveTradingService:
         if preview.decision == "reject":
             order.status = "rejected"
             write_audit(self.db, action="live.place", detail=f"order_id={order.id}; rejected_by_preview=true")
+            self.db.commit()
+            self.db.refresh(order)
+            return order
+        if preview.decision == "manual_review_required":
+            order.status = "previewed"
+            write_audit(self.db, action="live.place", detail=f"order_id={order.id}; manual_review_required=true")
             self.db.commit()
             self.db.refresh(order)
             return order
@@ -82,6 +90,7 @@ class LiveTradingService:
             return None
         if order.status in {"filled", "cancelled", "rejected"}:
             return order
+        self.broker.cancel_order(str(order.id))
         order.status = "cancelled"
         order.updated_at = datetime.utcnow()
         write_audit(self.db, action="live.cancel", detail=f"order_id={order.id}; status=cancelled")

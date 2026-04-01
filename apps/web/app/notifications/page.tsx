@@ -1,5 +1,4 @@
 import { AutoRefresh } from "../components/auto-refresh";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
@@ -11,20 +10,19 @@ export default async function NotificationsPage() {
 
   return (
     <main className="container">
-      <h1>Notifications</h1>
-      <NavBar />
+      <h1>通知中心</h1>
       <AutoRefresh intervalSeconds={20} />
-      <PageStateBanner state={pageState} detail={`notifications=${items.length}`} />
+      <PageStateBanner state={pageState} detail={`通知数=${items.length}`} />
       <div className="card">
-        <p>Count: {items.length}</p>
+        <p>数量：{items.length}</p>
         <table className="table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Source</th>
-              <th>Level</th>
-              <th>Title</th>
-              <th>Status</th>
+              <th>编号</th>
+              <th>来源</th>
+              <th>级别</th>
+              <th>标题</th>
+              <th>状态</th>
             </tr>
           </thead>
           <tbody>

@@ -1,5 +1,4 @@
 import { AutoRefresh } from "../components/auto-refresh";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
@@ -16,18 +15,17 @@ export default async function ReplayPage() {
 
   return (
     <main className="container">
-      <h1>Replay Center</h1>
-      <NavBar />
+      <h1>复盘中心</h1>
       <AutoRefresh intervalSeconds={30} />
-      <PageStateBanner state={pageState} detail={`days=${days.length}; records=${records.length}`} />
+      <PageStateBanner state={pageState} detail={`交易日数=${days.length}; 记录数=${records.length}`} />
       <div className="card">
-        <p>Available days: {days.join(", ") || "none"}</p>
+        <p>可选交易日：{days.join(", ") || "暂无"}</p>
         <table className="table">
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Strategy</th>
-              <th>Level</th>
+              <th>代码</th>
+              <th>战法</th>
+              <th>等级</th>
             </tr>
           </thead>
           <tbody>

@@ -1,5 +1,4 @@
 import { AutoRefresh } from "../components/auto-refresh";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
@@ -11,20 +10,19 @@ export default async function StrategiesPage() {
 
   return (
     <main className="container">
-      <h1>Strategies</h1>
-      <NavBar />
+      <h1>战法中心</h1>
       <AutoRefresh intervalSeconds={30} />
-      <PageStateBanner state={pageState} detail={`strategies=${items.length}`} />
+      <PageStateBanner state={pageState} detail={`战法数=${items.length}`} />
       <div className="card">
-        <p>Total: {items.length}</p>
+        <p>总数：{items.length}</p>
         <table className="table">
           <thead>
             <tr>
-              <th>Key</th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Version</th>
-              <th>Enabled</th>
+              <th>标识</th>
+              <th>名称</th>
+              <th>分类</th>
+              <th>版本</th>
+              <th>启用</th>
             </tr>
           </thead>
           <tbody>
@@ -34,7 +32,7 @@ export default async function StrategiesPage() {
                 <td>{String(item.strategy_name)}</td>
                 <td>{String(item.category)}</td>
                 <td>{String(item.version)}</td>
-                <td>{Boolean(item.enabled) ? "yes" : "no"}</td>
+                <td>{Boolean(item.enabled) ? "是" : "否"}</td>
               </tr>
             ))}
           </tbody>

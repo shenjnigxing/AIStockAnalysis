@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AppShell } from "./components/app-shell";
 import { ClientBootstrap } from "./components/client-bootstrap";
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body>
         <ClientBootstrap />
-        {children}
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

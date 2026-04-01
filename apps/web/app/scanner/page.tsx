@@ -1,6 +1,5 @@
 import { AutoRefresh } from "../components/auto-refresh";
 import { ApiActionFieldsForm } from "../components/api-action-fields-form";
-import { NavBar } from "../components/nav";
 import { PageStateBanner } from "../components/page-state-banner";
 import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
@@ -12,46 +11,45 @@ export default async function ScannerPage() {
 
   return (
     <main className="container">
-      <h1>Scanner</h1>
-      <NavBar />
+      <h1>市场扫描器</h1>
       <AutoRefresh intervalSeconds={20} />
-      <PageStateBanner state={pageState} detail={`candidates=${items.length}`} />
+      <PageStateBanner state={pageState} detail={`候选数=${items.length}`} />
       <div className="card">
         <ApiActionFieldsForm
-          title="Run Screener"
+          title="执行扫描"
           path="/api/screener/run"
           fields={[
             {
               name: "mode",
-              label: "Mode",
+              label: "扫描模式",
               kind: "select",
               defaultValue: "intraday",
               options: [
-                { label: "Intraday", value: "intraday" },
-                { label: "Pre-market", value: "pre_market" },
-                { label: "Post-market", value: "post_market" }
+                { label: "盘中", value: "intraday" },
+                { label: "盘前", value: "pre_market" },
+                { label: "盘后", value: "post_market" }
               ]
             },
-            { name: "top_n", label: "Top N", kind: "number", defaultValue: 100, payloadKey: "filters.top_n" },
+            { name: "top_n", label: "候选上限", kind: "number", defaultValue: 100, payloadKey: "filters.top_n" },
             {
               name: "min_change_pct",
-              label: "Min Change %",
+              label: "最小涨跌幅(%)",
               kind: "number",
               defaultValue: -5,
               payloadKey: "filters.min_change_pct"
             }
           ]}
-          buttonText="Run Screener Now"
+          buttonText="立即扫描"
         />
       </div>
       <div className="card">
-        <h2>Top100 Candidates</h2>
+        <h2>前100候选池</h2>
         <table className="table">
           <thead>
             <tr>
-              <th>Rank</th>
-              <th>Symbol</th>
-              <th>Base Score</th>
+              <th>排名</th>
+              <th>代码</th>
+              <th>基础分</th>
             </tr>
           </thead>
           <tbody>
