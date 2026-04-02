@@ -15,6 +15,8 @@ def live_preview(payload: dict, db: Session = Depends(get_db)) -> dict:
         price=float(payload["price"]),
         quantity=int(payload["quantity"]),
         recommendation_level=payload.get("recommendation_level", "C"),
+        manual_ack=bool(payload.get("manual_ack", False)),
+        auto_submit=bool(payload.get("auto_submit", False)),
     )
     return {"preview_id": row.id, "decision": row.decision, "summary": row.summary}
 
@@ -27,6 +29,8 @@ def live_place(payload: dict, db: Session = Depends(get_db)) -> dict:
         price=float(payload["price"]),
         quantity=int(payload["quantity"]),
         recommendation_level=payload.get("recommendation_level", "C"),
+        manual_ack=bool(payload.get("manual_ack", False)),
+        auto_submit=bool(payload.get("auto_submit", False)),
     )
     return {"order_id": row.id, "status": row.status}
 
@@ -72,3 +76,7 @@ def live_sync(db: Session = Depends(get_db)) -> dict:
 def live_broker_status(db: Session = Depends(get_db)) -> dict:
     return LiveTradingService(db).broker_status()
 
+
+@router.get("/broker/capabilities")
+def live_broker_capabilities(provider: str | None = None, db: Session = Depends(get_db)) -> dict:
+    return LiveTradingService(db).broker_capabilities(provider=provider)

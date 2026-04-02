@@ -2,12 +2,14 @@ import json
 from collections import defaultdict
 from datetime import datetime
 from statistics import mean
+from dataclasses import dataclass
 
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.db.models import DailyBar, RecommendationResult, RecommendationRun, ScreenerCandidate, StrategyDefinition, StrategyRun, StrategySignal, RealtimeQuote
 from app.services.audit import write_audit
+from app.services.llm_explainer import get_llm_explainer
 from app.services.strategy_engine import StrategyRegistry
 
 
@@ -123,10 +125,18 @@ class RecommendationService:
             return "research"
         return "avoid"
 
-    def run(self, market_state: str = "neutral", llm_enabled: bool = False) -> RecommendationRun:
+    @dataclass
+    class RunMeta:
+        llm_provider: str
+        llm_degraded_count: int
+
+    def run(self, market_state: str = "neutral", llm_enabled: bool = False, llm_provider: str | None = None) -> tuple[RecommendationRun, RunMeta]:
         run = RecommendationRun(status="completed", market_state=market_state)
         self.db.add(run)
         self.db.flush()
+        llm = get_llm_explainer(llm_provider) if llm_enabled else None
+        llm_name = llm.provider_name if llm else "disabled"
+        llm_degraded_count = 0
 
         candidates = list(
             self.db.scalars(
@@ -137,11 +147,14 @@ class RecommendationService:
             write_audit(
                 self.db,
                 action="recommendation.run",
-                detail=f"run_id={run.id}; market_state={market_state}; llm_enabled={llm_enabled}; items=0",
+                detail=(
+                    f"run_id={run.id}; market_state={market_state}; "
+                    f"llm_enabled={llm_enabled}; llm_provider={llm_name}; items=0"
+                ),
             )
             self.db.commit()
             self.db.refresh(run)
-            return run
+            return run, RecommendationService.RunMeta(llm_provider=llm_name, llm_degraded_count=llm_degraded_count)
 
         symbols = list({c.symbol for c in candidates})
         latest_quotes = self._latest_quote_by_symbol(symbols)
@@ -205,27 +218,40 @@ class RecommendationService:
             avg_market_fit = mean([s.market_fit_score for s in hit_signals]) if hit_signals else 0.0
             resonance_score = _clip(len(hit_signals) * 8.0 + strategy_strength * 0.4 + avg_market_fit * 20.0, 0.0, 100.0)
             quant_score = round(_clip(c.base_score * 0.45 + strategy_strength * 0.35 + resonance_score * 0.2, 0.0, 100.0), 2)
+            sorted_hits = sorted(hit_signals, key=lambda item: item.score, reverse=True)
+            hit_keys = [s.strategy_key for s in sorted_hits][:8]
 
             risk_score_value, risk_notes = _risk_from_tags(total_risk_tags, market_state)
             risk_score = round(risk_score_value, 2)
 
-            if llm_enabled:
-                llm_adj = round(_clip((avg_market_fit * 100 - risk_score) * 0.05 + len(hit_signals) * 0.2, -4.0, 4.0), 2)
-            else:
-                llm_adj = 0.0
+            llm_adj = 0.0
+            llm_explanation = ""
+            llm_counter_args: list[str] = []
+            if llm is not None:
+                llm_result = llm.explain(
+                    symbol=c.symbol,
+                    market_state=market_state,
+                    quant_score=quant_score,
+                    risk_score=risk_score,
+                    hit_strategies=hit_keys,
+                    risk_tags=total_risk_tags,
+                )
+                llm_adj = llm_result.adjustment
+                llm_explanation = llm_result.explanation
+                llm_counter_args = llm_result.counter_arguments
+                if llm_result.degraded:
+                    llm_degraded_count += 1
 
             total = round(_clip(quant_score - risk_score + llm_adj, 0.0, 100.0), 2)
             level = _to_level(total)
 
-            sorted_hits = sorted(hit_signals, key=lambda item: item.score, reverse=True)
-            hit_keys = [s.strategy_key for s in sorted_hits][:8]
             reasons = [
                 f"候选基础分={round(c.base_score, 2)}",
                 f"战法命中={len(hit_signals)}",
                 f"市场状态={market_state}",
                 f"共振分={round(resonance_score, 2)}",
             ]
-            counter_arguments = risk_notes[:]
+            counter_arguments = llm_counter_args + risk_notes
             if not counter_arguments and level in {"C", "D"}:
                 counter_arguments.append("信号强度不足")
 
@@ -240,11 +266,7 @@ class RecommendationService:
                 llm_score_adjustment=llm_adj,
                 hit_strategies=json.dumps(hit_keys, ensure_ascii=True),
                 reasons=json.dumps(reasons, ensure_ascii=True),
-                llm_explanation=(
-                    "LLM解释：量价结构与战法共振较强，建议结合风控阈值执行。"
-                    if llm_enabled
-                    else ""
-                ),
+                llm_explanation=llm_explanation,
                 counter_arguments=json.dumps(counter_arguments, ensure_ascii=True),
                 risk_tags=json.dumps(total_risk_tags, ensure_ascii=True),
                 action_suggestion=self._action_suggestion(level, market_state, risk_score),
@@ -263,12 +285,13 @@ class RecommendationService:
             action="recommendation.run",
             detail=(
                 f"run_id={run.id}; strategy_run_id={strategy_run.id}; "
-                f"market_state={market_state}; llm_enabled={llm_enabled}; items={len(rows)}"
+                f"market_state={market_state}; llm_enabled={llm_enabled}; "
+                f"llm_provider={llm_name}; llm_degraded={llm_degraded_count}; items={len(rows)}"
             ),
         )
         self.db.commit()
         self.db.refresh(run)
-        return run
+        return run, RecommendationService.RunMeta(llm_provider=llm_name, llm_degraded_count=llm_degraded_count)
 
     def latest(self) -> list[RecommendationResult]:
         run = self.db.scalar(select(RecommendationRun).order_by(desc(RecommendationRun.created_at)))

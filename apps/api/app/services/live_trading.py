@@ -15,8 +15,26 @@ class LiveTradingService:
         self.broker = get_broker()
         self.risk = RiskService(db)
 
-    def preview(self, symbol: str, side: str, price: float, quantity: int, recommendation_level: str = "C") -> OrderPreview:
-        risk = self.risk.evaluate_order(symbol, side, price, quantity, recommendation_level=recommendation_level)
+    def preview(
+        self,
+        symbol: str,
+        side: str,
+        price: float,
+        quantity: int,
+        recommendation_level: str = "C",
+        manual_ack: bool = False,
+        auto_submit: bool = False,
+    ) -> OrderPreview:
+        risk = self.risk.evaluate_order(
+            symbol,
+            side,
+            price,
+            quantity,
+            recommendation_level=recommendation_level,
+            channel="live",
+            manual_ack=manual_ack,
+            auto_submit=auto_submit,
+        )
         broker_preview = self.broker.preview_order({"symbol": symbol, "side": side, "price": price, "quantity": quantity})
         summary = f"{risk['summary']}; broker={broker_preview.get('status', 'unknown')}"
         preview = OrderPreview(
@@ -31,14 +49,34 @@ class LiveTradingService:
         write_audit(
             self.db,
             action="live.preview",
-            detail=f"symbol={symbol}; side={side}; price={price}; quantity={quantity}; decision={preview.decision}",
+            detail=(
+                f"symbol={symbol}; side={side}; price={price}; quantity={quantity}; "
+                f"decision={preview.decision}; manual_ack={manual_ack}; auto_submit={auto_submit}"
+            ),
         )
         self.db.commit()
         self.db.refresh(preview)
         return preview
 
-    def place(self, symbol: str, side: str, price: float, quantity: int, recommendation_level: str = "C") -> LiveOrder:
-        preview = self.preview(symbol, side, price, quantity, recommendation_level=recommendation_level)
+    def place(
+        self,
+        symbol: str,
+        side: str,
+        price: float,
+        quantity: int,
+        recommendation_level: str = "C",
+        manual_ack: bool = False,
+        auto_submit: bool = False,
+    ) -> LiveOrder:
+        preview = self.preview(
+            symbol,
+            side,
+            price,
+            quantity,
+            recommendation_level=recommendation_level,
+            manual_ack=manual_ack,
+            auto_submit=auto_submit,
+        )
         order = LiveOrder(symbol=symbol, side=side.lower(), price=price, quantity=quantity, status="previewed")
         self.db.add(order)
         self.db.flush()
@@ -113,10 +151,18 @@ class LiveTradingService:
 
     def broker_status(self) -> dict:
         status = self.broker.ping()
+        status["provider"] = self.broker.provider_name()
         self.db.add(BrokerSessionStatus(status=status.get("status", "unknown"), detail=str(status)))
         write_audit(self.db, action="live.broker_status", detail=f"status={status.get('status', 'unknown')}")
         self.db.commit()
         return status
+
+    def broker_capabilities(self, provider: str | None = None) -> dict:
+        broker = get_broker(provider)
+        caps = broker.capabilities()
+        write_audit(self.db, action="live.broker_capabilities", detail=f"provider={caps.get('provider', 'unknown')}")
+        self.db.commit()
+        return caps
 
     def orders(self) -> list[LiveOrder]:
         return list(self.db.scalars(select(LiveOrder).order_by(desc(LiveOrder.created_at))).all())

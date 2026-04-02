@@ -14,6 +14,11 @@ DEFAULT_RISK_CONFIG = {
     "max_daily_loss": 20000,
     "max_daily_trade_count": 20,
     "min_recommendation_level": "B",
+    "live_gray_mode_enabled": True,
+    "live_gray_max_notional": 50000,
+    "live_gray_whitelist": ["000001", "600000", "600519"],
+    "live_gray_blocklist": [],
+    "live_auto_submit": False,
 }
 
 
@@ -39,6 +44,28 @@ class RiskService:
         self.db.refresh(conf)
         return conf
 
+    def get_live_gray_config(self) -> dict:
+        conf = json.loads(self.get_config().config_json)
+        return {
+            "live_gray_mode_enabled": bool(conf.get("live_gray_mode_enabled", True)),
+            "live_gray_max_notional": float(conf.get("live_gray_max_notional", 50000)),
+            "live_gray_whitelist": conf.get("live_gray_whitelist", []),
+            "live_gray_blocklist": conf.get("live_gray_blocklist", []),
+            "live_auto_submit": bool(conf.get("live_auto_submit", False)),
+        }
+
+    def update_live_gray_config(self, payload: dict) -> dict:
+        conf = json.loads(self.get_config().config_json)
+        conf["live_gray_mode_enabled"] = bool(payload.get("live_gray_mode_enabled", conf.get("live_gray_mode_enabled", True)))
+        conf["live_gray_max_notional"] = float(payload.get("live_gray_max_notional", conf.get("live_gray_max_notional", 50000)))
+        conf["live_gray_whitelist"] = payload.get("live_gray_whitelist", conf.get("live_gray_whitelist", []))
+        conf["live_gray_blocklist"] = payload.get("live_gray_blocklist", conf.get("live_gray_blocklist", []))
+        conf["live_auto_submit"] = bool(payload.get("live_auto_submit", conf.get("live_auto_submit", False)))
+        row = self.update_config(conf)
+        write_audit(self.db, action="risk.live_gray_update", detail="updated=true")
+        self.db.commit()
+        return json.loads(row.config_json)
+
     def status(self) -> dict:
         ks = self.db.scalar(select(KillSwitchStatus).order_by(desc(KillSwitchStatus.updated_at)))
         enabled = ks.enabled if ks else False
@@ -48,7 +75,22 @@ class RiskService:
         mapping = {"A": 4, "B": 3, "C": 2, "D": 1}
         return mapping.get(str(level).upper(), 0)
 
-    def evaluate_order(self, symbol: str, side: str, price: float, quantity: int, recommendation_level: str = "C") -> dict:
+    def _to_symbol_set(self, value: object) -> set[str]:
+        if isinstance(value, list):
+            return {str(item).strip() for item in value if str(item).strip()}
+        return set()
+
+    def evaluate_order(
+        self,
+        symbol: str,
+        side: str,
+        price: float,
+        quantity: int,
+        recommendation_level: str = "C",
+        channel: str = "paper",
+        manual_ack: bool = False,
+        auto_submit: bool = False,
+    ) -> dict:
         conf = json.loads(self.get_config().config_json)
         amount = price * quantity
         account = self.db.scalar(select(PaperAccount).order_by(PaperAccount.id))
@@ -72,7 +114,7 @@ class RiskService:
         if side == "buy" and amount > cash:
             hard.append("insufficient_cash")
         min_level = str(conf.get("min_recommendation_level", "B")).upper()
-        if self._recommendation_rank(recommendation_level) < self._recommendation_rank(min_level):
+        if self._recommendation_rank(recommendation_level) < self._recommendation_rank(min_level) and not manual_ack:
             manual.append("recommendation_level_low")
 
         if account:
@@ -96,7 +138,7 @@ class RiskService:
         today_start = datetime(today.year, today.month, today.day)
         today_orders = list(self.db.scalars(select(PaperOrder).where(PaperOrder.created_at >= today_start)).all())
         trade_count = len(today_orders)
-        if trade_count >= int(conf.get("max_daily_trade_count", 20)):
+        if trade_count >= int(conf.get("max_daily_trade_count", 20)) and not manual_ack:
             manual.append("daily_trade_count_limit")
 
         if account and account.daily_pnl <= -abs(float(conf.get("max_daily_loss", 20000))):
@@ -105,6 +147,21 @@ class RiskService:
             warnings.append("large_order_warning")
         if projected_ratio > float(conf.get("max_position_ratio", 0.3)) * 0.8:
             warnings.append("position_ratio_warning")
+
+        if channel == "live":
+            live_gray = bool(conf.get("live_gray_mode_enabled", True))
+            if auto_submit and not bool(conf.get("live_auto_submit", False)):
+                manual.append("auto_submit_disabled")
+            if live_gray:
+                whitelist = self._to_symbol_set(conf.get("live_gray_whitelist"))
+                blocklist = self._to_symbol_set(conf.get("live_gray_blocklist"))
+                gray_max = float(conf.get("live_gray_max_notional", 50000))
+                if symbol in blocklist:
+                    hard.append("live_gray_blocklist_symbol")
+                if whitelist and symbol not in whitelist:
+                    manual.append("live_gray_symbol_not_whitelisted")
+                if side == "buy" and amount > gray_max:
+                    manual.append("live_gray_notional_exceeded")
 
         if hard:
             decision = "reject"
@@ -116,10 +173,13 @@ class RiskService:
             decision = "pass"
 
         event = RiskEvent(
-            event_type="order_preview",
+            event_type=f"{channel}_order_preview",
             level="critical" if decision == "reject" else "warning" if warnings else "info",
             summary=f"decision={decision}",
-            detail=json.dumps({"symbol": symbol, "side": side, "amount": amount}, ensure_ascii=True),
+            detail=json.dumps(
+                {"symbol": symbol, "side": side, "amount": amount, "channel": channel, "manual_ack": manual_ack},
+                ensure_ascii=True,
+            ),
         )
         self.db.add(event)
         self.db.commit()
@@ -132,7 +192,15 @@ class RiskService:
             "estimated_cost": round(amount, 2),
             "estimated_position_ratio": round(min(1.0, projected_ratio), 4),
             "recommendation_snapshot": {"recommendation_level": recommendation_level},
-            "risk_context": {"cash": cash, "total_assets": total_assets, "position_qty": current_qty, "trade_count_today": trade_count},
+            "risk_context": {
+                "cash": cash,
+                "total_assets": total_assets,
+                "position_qty": current_qty,
+                "trade_count_today": trade_count,
+                "channel": channel,
+                "manual_ack": manual_ack,
+                "auto_submit": auto_submit,
+            },
             "requires_manual_ack": decision == "manual_review_required",
         }
 

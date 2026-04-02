@@ -15,6 +15,8 @@ def get_system_status() -> dict:
         "status": "ok",
         "app_name": settings.app_name,
         "environment": settings.app_env,
+        "broker_provider": settings.broker_provider,
+        "llm_provider": settings.llm_provider,
     }
 
 
@@ -29,6 +31,12 @@ def get_config_check() -> dict:
         "redis": {
             "host": settings.redis_host,
             "port": settings.redis_port,
+        },
+        "llm": {
+            "provider": settings.llm_provider,
+            "model": settings.llm_openai_model,
+            "base_url": settings.llm_openai_base_url,
+            "api_key_configured": bool(settings.llm_openai_api_key),
         },
     }
 

@@ -18,6 +18,10 @@ class Settings:
     )
     market_data_provider: str = os.getenv("MARKET_DATA_PROVIDER", "akshare")
     broker_provider: str = os.getenv("BROKER_PROVIDER", "mock")
+    llm_provider: str = os.getenv("LLM_PROVIDER", "mock")
+    llm_openai_base_url: str = os.getenv("LLM_OPENAI_BASE_URL", "https://api.openai.com/v1")
+    llm_openai_model: str = os.getenv("LLM_OPENAI_MODEL", "gpt-4o-mini")
+    llm_openai_api_key: str = os.getenv("LLM_OPENAI_API_KEY", "")
 
 
 settings = Settings()

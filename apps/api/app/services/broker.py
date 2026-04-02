@@ -14,6 +14,26 @@ class BrokerOrderResult:
 
 
 class BrokerBase:
+    provider: str = "base"
+
+    def provider_name(self) -> str:
+        return self.provider
+
+    def capabilities(self) -> dict:
+        return {
+            "provider": self.provider_name(),
+            "ready": False,
+            "supports": {
+                "preview_order": False,
+                "place_order": False,
+                "cancel_order": False,
+                "query_assets": False,
+                "query_positions": False,
+                "query_orders": False,
+                "query_trades": False,
+            },
+        }
+
     def preview_order(self, payload: dict) -> dict:
         raise NotImplementedError
 
@@ -40,6 +60,8 @@ class BrokerBase:
 
 
 class MockBroker(BrokerBase):
+    provider = "mock"
+
     def preview_order(self, payload: dict) -> dict:
         return {"status": "ok", "estimated_cost": round(payload["price"] * payload["quantity"], 2)}
 
@@ -65,9 +87,26 @@ class MockBroker(BrokerBase):
     def query_trades(self) -> list[dict]:
         return []
 
+    def capabilities(self) -> dict:
+        return {
+            "provider": self.provider_name(),
+            "ready": True,
+            "supports": {
+                "preview_order": True,
+                "place_order": True,
+                "cancel_order": True,
+                "query_assets": True,
+                "query_positions": True,
+                "query_orders": True,
+                "query_trades": True,
+            },
+            "note": "mock broker for local simulation",
+        }
+
 
 class EastMoneyAdapter(BrokerBase):
-    # Placeholder only for later integration.
+    provider = "eastmoney"
+
     def preview_order(self, payload: dict) -> dict:
         return {"status": "not_implemented", "message": "eastmoney adapter placeholder"}
 
@@ -88,6 +127,23 @@ class EastMoneyAdapter(BrokerBase):
 
     def query_trades(self) -> list[dict]:
         return []
+
+    def capabilities(self) -> dict:
+        return {
+            "provider": self.provider_name(),
+            "ready": False,
+            "supports": {
+                "preview_order": True,
+                "place_order": False,
+                "cancel_order": False,
+                "query_assets": False,
+                "query_positions": False,
+                "query_orders": False,
+                "query_trades": False,
+            },
+            "required_fields": ["broker account", "session token", "signature config"],
+            "note": "phase6 skeleton only, no private protocol implemented",
+        }
 
 
 def get_broker(provider: str | None = None) -> BrokerBase:

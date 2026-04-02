@@ -277,3 +277,54 @@ class BacktestService:
 
     def equity(self, job_id: int) -> list[BacktestEquityCurve]:
         return list(self.db.scalars(select(BacktestEquityCurve).where(BacktestEquityCurve.job_id == job_id)).all())
+
+    def report_detail(self, job_id: int) -> dict | None:
+        report = self.report(job_id)
+        if report is None:
+            return None
+        metrics = json.loads(report.metrics_json)
+        trades = self.trades(job_id)
+        equities = sorted(self.equity(job_id), key=lambda item: item.point_time)
+        if len(equities) < 2:
+            return {
+                "metrics": metrics,
+                "granularity": {"daily_returns": [], "rolling_drawdown": [], "trade_distribution": {}},
+            }
+
+        values = [float(item.equity) for item in equities]
+        daily_returns = [
+            {
+                "point_time": equities[idx].point_time.isoformat(),
+                "return": round((values[idx] - values[idx - 1]) / max(values[idx - 1], 1e-6), 6),
+            }
+            for idx in range(1, len(values))
+        ]
+        rolling_drawdown: list[dict] = []
+        peak = values[0]
+        for idx, value in enumerate(values):
+            peak = max(peak, value)
+            dd = (peak - value) / max(peak, 1e-6)
+            rolling_drawdown.append(
+                {
+                    "point_time": equities[idx].point_time.isoformat(),
+                    "drawdown": round(dd, 6),
+                }
+            )
+        buy_count = len([t for t in trades if t.side == "buy"])
+        sell_count = len([t for t in trades if t.side == "sell"])
+        avg_trade_notional = round(
+            mean([float(t.price) * int(t.quantity) for t in trades]) if trades else 0.0,
+            2,
+        )
+        return {
+            "metrics": metrics,
+            "granularity": {
+                "daily_returns": daily_returns,
+                "rolling_drawdown": rolling_drawdown,
+                "trade_distribution": {
+                    "buy_count": buy_count,
+                    "sell_count": sell_count,
+                    "avg_trade_notional": avg_trade_notional,
+                },
+            },
+        }

@@ -6,12 +6,12 @@ from pathlib import Path
 from urllib.parse import unquote
 from datetime import date, datetime
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
-from app.db.models import AuditLog, Notification, ReplayRecord, SystemConfig
+from app.db.models import AuditLog, KillSwitchStatus, Notification, ReplayRecord, RiskEvent, SyncJob, SystemConfig
 from app.services.audit import write_audit
 
 
@@ -224,10 +224,75 @@ class AdminService:
         return list(self.db.scalars(select(AuditLog).order_by(desc(AuditLog.created_at)).limit(200)).all())
 
     def metrics(self) -> dict:
+        db_status = "ok"
+        try:
+            self.db.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            db_status = "degraded"
+        unread_count = len(self.db.scalars(select(Notification).where(Notification.status == "unread")).all())
+        risk_recent = len(self.db.scalars(select(RiskEvent).order_by(desc(RiskEvent.created_at)).limit(50)).all())
+        latest_sync = self.db.scalar(select(SyncJob).order_by(desc(SyncJob.created_at)))
+        kill_switch = self.db.scalar(select(KillSwitchStatus).order_by(desc(KillSwitchStatus.updated_at)))
+        backups = self.list_backups()
         return {
             "timestamp": datetime.utcnow().isoformat(),
-            "services": {"api": "ok"},
-            "note": "basic phase metrics",
+            "services": {
+                "api": "ok",
+                "db": db_status,
+            },
+            "overview": {
+                "unread_notifications": unread_count,
+                "recent_risk_events": risk_recent,
+                "kill_switch_enabled": bool(kill_switch.enabled) if kill_switch else False,
+                "latest_sync_job_status": latest_sync.status if latest_sync else "never_run",
+                "backup_count": len(backups),
+            },
+        }
+
+    def runtime_health(self) -> dict:
+        metrics = self.metrics()
+        backups = self.list_backups()
+        latest_backup_at = backups[0]["updated_at"] if backups else ""
+        fresh_backup = False
+        if backups:
+            try:
+                backup_dt = datetime.fromisoformat(str(backups[0]["updated_at"]))
+                fresh_backup = (datetime.utcnow() - backup_dt).total_seconds() <= 24 * 3600
+            except ValueError:
+                fresh_backup = False
+        degraded_reasons: list[str] = []
+        if metrics["services"].get("db") != "ok":
+            degraded_reasons.append("db_unavailable")
+        if not fresh_backup:
+            degraded_reasons.append("backup_not_fresh")
+        return {
+            "status": "degraded" if degraded_reasons else "ok",
+            "degraded_reasons": degraded_reasons,
+            "services": metrics["services"],
+            "resilience": {
+                "latest_backup_at": latest_backup_at,
+                "fresh_backup_within_24h": fresh_backup,
+                "backup_count": len(backups),
+            },
+            "timestamp": metrics["timestamp"],
+        }
+
+    def disaster_recovery_readiness(self) -> dict:
+        backups = self.list_backups()
+        kill_switch = self.db.scalar(select(KillSwitchStatus).order_by(desc(KillSwitchStatus.updated_at)))
+        can_restore = len(backups) > 0
+        checklist = {
+            "backup_available": can_restore,
+            "kill_switch_control_ready": bool(kill_switch is not None),
+            "audit_log_writable": True,
+        }
+        score = int(sum(1 for _, passed in checklist.items() if passed) / max(len(checklist), 1) * 100)
+        return {
+            "score": score,
+            "status": "ready" if score >= 80 else "partial",
+            "checklist": checklist,
+            "latest_backup_marker": backups[0]["marker"] if backups else "",
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     def backup(self) -> dict:

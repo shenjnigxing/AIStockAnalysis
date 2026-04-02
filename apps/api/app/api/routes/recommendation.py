@@ -33,8 +33,17 @@ def _serialize(row: RecommendationResult) -> dict:
 @router.post("/run")
 def run_recommendation(payload: dict, db: Session = Depends(get_db)) -> dict:
     service = RecommendationService(db)
-    run = service.run(market_state=payload.get("market_state", "neutral"), llm_enabled=bool(payload.get("llm_enabled", False)))
-    return {"recommendation_run_id": run.id, "status": run.status}
+    run, meta = service.run(
+        market_state=payload.get("market_state", "neutral"),
+        llm_enabled=bool(payload.get("llm_enabled", False)),
+        llm_provider=payload.get("llm_provider"),
+    )
+    return {
+        "recommendation_run_id": run.id,
+        "status": run.status,
+        "llm_provider": meta.llm_provider,
+        "llm_degraded_count": meta.llm_degraded_count,
+    }
 
 
 @router.get("/latest")

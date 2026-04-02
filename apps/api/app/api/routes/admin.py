@@ -36,4 +36,16 @@ def admin_restore(payload: dict | None = None, db: Session = Depends(get_db)) ->
 
 @router.get("/system-health")
 def admin_system_health(db: Session = Depends(get_db)) -> dict:
-    return {"status": "ok", "components": {"api": "ok", "db": "ok"}}
+    runtime = AdminService(db).runtime_health()
+    components = {"api": "ok", "db": runtime.get("services", {}).get("db", "unknown")}
+    return {"status": runtime.get("status", "ok"), "components": components}
+
+
+@router.get("/runtime-health")
+def admin_runtime_health(db: Session = Depends(get_db)) -> dict:
+    return AdminService(db).runtime_health()
+
+
+@router.get("/dr/readiness")
+def admin_dr_readiness(db: Session = Depends(get_db)) -> dict:
+    return AdminService(db).disaster_recovery_readiness()

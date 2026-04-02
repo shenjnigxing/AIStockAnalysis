@@ -21,6 +21,16 @@ def risk_update(payload: dict, db: Session = Depends(get_db)) -> dict:
     return {"config": json.loads(row.config_json)}
 
 
+@router.get("/live-gray/config")
+def risk_live_gray_get(db: Session = Depends(get_db)) -> dict:
+    return {"config": RiskService(db).get_live_gray_config()}
+
+
+@router.post("/live-gray/config")
+def risk_live_gray_update(payload: dict, db: Session = Depends(get_db)) -> dict:
+    return {"config": RiskService(db).update_live_gray_config(payload)}
+
+
 @router.get("/status")
 def risk_status(db: Session = Depends(get_db)) -> dict:
     return RiskService(db).status()
@@ -42,4 +52,3 @@ def risk_enable(payload: dict, db: Session = Depends(get_db)) -> dict:
 def risk_disable(payload: dict, db: Session = Depends(get_db)) -> dict:
     row = RiskService(db).set_kill_switch(False, payload.get("reason", "manual_disable"))
     return {"enabled": row.enabled, "reason": row.reason}
-

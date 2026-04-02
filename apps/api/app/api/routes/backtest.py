@@ -30,6 +30,14 @@ def backtest_report(job_id: int, db: Session = Depends(get_db)) -> dict:
     return {"job_id": job_id, "metrics": json.loads(row.metrics_json)}
 
 
+@router.get("/report/{job_id}/detail")
+def backtest_report_detail(job_id: int, db: Session = Depends(get_db)) -> dict:
+    detail = BacktestService(db).report_detail(job_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    return {"job_id": job_id, **detail}
+
+
 @router.get("/trades/{job_id}")
 def backtest_trades(job_id: int, db: Session = Depends(get_db)) -> dict:
     rows = BacktestService(db).trades(job_id)
@@ -54,4 +62,3 @@ def backtest_compare(payload: dict, db: Session = Depends(get_db)) -> dict:
     l = json.loads(left_report.metrics_json)
     r = json.loads(right_report.metrics_json)
     return {"left": l, "right": r}
-
