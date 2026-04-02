@@ -74,12 +74,23 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
   return (
     <div className="appShell">
+      <div className="campusTopBar">
+        <div className="campusTopInner">
+          <span>股票量化研究中心</span>
+          <span>官方信息门户</span>
+        </div>
+      </div>
       <header className="globalHeader">
         <div className="headerBrand">
-          <Link href="/" className="brandTitle">
-            股票投研系统
-          </Link>
-          <p>阿里风格菜单工作台</p>
+          <div className="brandSeal" aria-hidden="true">
+            投研
+          </div>
+          <div className="brandText">
+            <Link href="/" className="brandTitle">
+              股票投研系统
+            </Link>
+            <p>个人证券分析与交易辅助官方门户</p>
+          </div>
         </div>
         <nav className="topMenuBar" aria-label="主导航">
           {menuGroups.map((group) => {

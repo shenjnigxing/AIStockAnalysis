@@ -10,7 +10,8 @@ router = APIRouter()
 @router.get("")
 def settings_get(db: Session = Depends(get_db)) -> dict:
     rows = SettingsService(db).get_all()
-    return {"items": [{"config_key": r.config_key, "config_value": r.config_value} for r in rows]}
+    items = [{"config_key": r.config_key, "config_value": r.config_value} for r in rows]
+    return {"count": len(items), "items": items}
 
 
 @router.post("/update")
@@ -23,4 +24,3 @@ def settings_update(payload: dict, db: Session = Depends(get_db)) -> dict:
 def settings_reset(db: Session = Depends(get_db)) -> dict:
     defaults = SettingsService(db).reset_default()
     return {"defaults": defaults}
-

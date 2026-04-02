@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import shutil
+from pathlib import Path
+from urllib.parse import unquote
 from datetime import date, datetime
 
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.config import settings
 from app.db.models import AuditLog, Notification, ReplayRecord, SystemConfig
 from app.services.audit import write_audit
 
@@ -171,6 +176,50 @@ class AdminService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
+    def _audit_best_effort(self, action: str, detail: str) -> str | None:
+        try:
+            write_audit(self.db, action=action, detail=detail)
+            self.db.commit()
+            return None
+        except SQLAlchemyError as exc:
+            self.db.rollback()
+            return str(exc)
+
+    def _resolve_sqlite_path(self) -> Path | None:
+        url = settings.database_url
+        if not url.startswith("sqlite:"):
+            return None
+        if url.startswith("sqlite:///"):
+            raw_path = url[len("sqlite:///") :]
+        elif url.startswith("sqlite://"):
+            raw_path = url[len("sqlite://") :]
+        else:
+            return None
+        # `sqlite:///:memory:` and similar URI-based in-memory DBs are not file-backed.
+        normalized = raw_path.strip().lower()
+        if not normalized or ":memory:" in normalized:
+            return None
+        return Path(unquote(raw_path)).expanduser().resolve()
+
+    def _backup_root(self) -> Path:
+        root = Path(__file__).resolve().parents[4]
+        target = root / "data" / "backups"
+        target.mkdir(parents=True, exist_ok=True)
+        return target
+
+    def list_backups(self) -> list[dict]:
+        backup_root = self._backup_root()
+        files = sorted(backup_root.glob("stock_assistant_*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
+        return [
+            {
+                "marker": file.stem.replace("stock_assistant_", ""),
+                "path": str(file),
+                "size_bytes": file.stat().st_size,
+                "updated_at": datetime.utcfromtimestamp(file.stat().st_mtime).isoformat(),
+            }
+            for file in files
+        ]
+
     def audit_logs(self) -> list[AuditLog]:
         return list(self.db.scalars(select(AuditLog).order_by(desc(AuditLog.created_at)).limit(200)).all())
 
@@ -183,12 +232,72 @@ class AdminService:
 
     def backup(self) -> dict:
         marker = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        write_audit(self.db, action="admin.backup", detail=f"marker={marker}; mode=placeholder")
-        self.db.commit()
-        return {"status": "ok", "message": "backup placeholder", "marker": marker}
+        source_db = self._resolve_sqlite_path()
+        if source_db is None:
+            self._audit_best_effort(action="admin.backup", detail=f"marker={marker}; status=skipped_non_sqlite")
+            return {"status": "skipped", "message": "non-sqlite database is not handled by local file backup", "marker": marker}
+        if not source_db.exists():
+            self._audit_best_effort(action="admin.backup", detail=f"marker={marker}; status=source_missing")
+            return {"status": "failed", "message": "source database file not found", "marker": marker}
 
-    def restore(self) -> dict:
-        marker = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        write_audit(self.db, action="admin.restore", detail=f"marker={marker}; mode=placeholder")
-        self.db.commit()
-        return {"status": "ok", "message": "restore placeholder", "marker": marker}
+        backup_file = self._backup_root() / f"stock_assistant_{marker}.db"
+        shutil.copy2(source_db, backup_file)
+        audit_error = self._audit_best_effort(
+            action="admin.backup",
+            detail=f"marker={marker}; status=completed; source={source_db}; target={backup_file}",
+        )
+        payload: dict[str, object] = {
+            "status": "ok",
+            "message": "backup created",
+            "marker": marker,
+            "source": str(source_db),
+            "target": str(backup_file),
+            "size_bytes": backup_file.stat().st_size,
+        }
+        if audit_error:
+            payload["audit_error"] = audit_error
+        return payload
+
+    def restore(self, marker: str | None = None) -> dict:
+        source_db = self._resolve_sqlite_path()
+        if source_db is None:
+            self._audit_best_effort(action="admin.restore", detail=f"marker={marker or ''}; status=skipped_non_sqlite")
+            return {"status": "skipped", "message": "non-sqlite database is not handled by local file restore"}
+
+        backups = self.list_backups()
+        if not backups:
+            self._audit_best_effort(action="admin.restore", detail="status=failed; reason=no_backup")
+            return {"status": "failed", "message": "no backup file found"}
+
+        selected = backups[0]
+        if marker:
+            matched = next((item for item in backups if item["marker"] == marker), None)
+            if matched is None:
+                self._audit_best_effort(action="admin.restore", detail=f"marker={marker}; status=failed; reason=not_found")
+                return {"status": "failed", "message": f"backup marker {marker} not found"}
+            selected = matched
+
+        backup_file = Path(selected["path"])
+        if not backup_file.exists():
+            self._audit_best_effort(
+                action="admin.restore",
+                detail=f"marker={selected['marker']}; status=failed; reason=file_missing",
+            )
+            return {"status": "failed", "message": "backup file missing on disk"}
+
+        source_db.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(backup_file, source_db)
+        audit_error = self._audit_best_effort(
+            action="admin.restore",
+            detail=f"marker={selected['marker']}; status=completed; source={backup_file}; target={source_db}",
+        )
+        payload: dict[str, object] = {
+            "status": "ok",
+            "message": "restore completed",
+            "marker": selected["marker"],
+            "source": str(backup_file),
+            "target": str(source_db),
+        }
+        if audit_error:
+            payload["audit_error"] = audit_error
+        return payload

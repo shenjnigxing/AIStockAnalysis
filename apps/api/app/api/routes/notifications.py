@@ -10,19 +10,21 @@ router = APIRouter()
 @router.get("")
 def notifications(unread_only: bool = False, db: Session = Depends(get_db)) -> dict:
     rows = NotificationService(db).list(unread_only=unread_only)
+    items = [
+        {
+            "id": n.id,
+            "source_type": n.source_type,
+            "level": n.level,
+            "title": n.title,
+            "body": n.body,
+            "status": n.status,
+            "created_at": n.created_at.isoformat(),
+        }
+        for n in rows
+    ]
     return {
-        "items": [
-            {
-                "id": n.id,
-                "source_type": n.source_type,
-                "level": n.level,
-                "title": n.title,
-                "body": n.body,
-                "status": n.status,
-                "created_at": n.created_at.isoformat(),
-            }
-            for n in rows
-        ]
+        "count": len(items),
+        "items": items,
     }
 
 
@@ -58,4 +60,3 @@ def notification_settings(db: Session = Depends(get_db)) -> dict:
 def notification_settings_update(payload: dict, db: Session = Depends(get_db)) -> dict:
     row = SettingsService(db).update("notification", payload.get("notification", {}))
     return {"config_key": row.config_key, "config_value": row.config_value}
-

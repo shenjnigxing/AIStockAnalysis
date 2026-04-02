@@ -23,9 +23,15 @@ def admin_backup(db: Session = Depends(get_db)) -> dict:
     return AdminService(db).backup()
 
 
+@router.get("/backup/list")
+def admin_backup_list(db: Session = Depends(get_db)) -> dict:
+    return {"items": AdminService(db).list_backups()}
+
+
 @router.post("/restore")
-def admin_restore(db: Session = Depends(get_db)) -> dict:
-    return AdminService(db).restore()
+def admin_restore(payload: dict | None = None, db: Session = Depends(get_db)) -> dict:
+    marker = (payload or {}).get("marker")
+    return AdminService(db).restore(marker=marker)
 
 
 @router.get("/system-health")
