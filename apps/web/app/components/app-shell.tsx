@@ -40,6 +40,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: "风控与系统",
     items: [
+      { href: "/risk-center", label: "风控中心", description: "规则配置与风险事件流" },
       { href: "/notifications", label: "通知中心", description: "消息与告警处理" },
       { href: "/settings", label: "设置中心", description: "模块参数管理" },
       { href: "/init", label: "初始化向导", description: "环境检查与引导" },
@@ -49,6 +50,7 @@ const menuGroups: MenuGroup[] = [
 ];
 
 const toolActions: MenuItem[] = [
+  { href: "/risk-center", label: "风险总览", description: "进入风控中心" },
   { href: "/scanner", label: "快速选股", description: "进入市场扫描器" },
   { href: "/strategies", label: "战法评估", description: "进入战法中心" },
   { href: "/data-center", label: "同步数据", description: "进入数据中心" },

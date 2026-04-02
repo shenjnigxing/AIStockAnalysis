@@ -16,6 +16,7 @@ test("required routes render", async ({ page }) => {
     { path: "/backtests", heading: "回测中心" },
     { path: "/paper-trading", heading: "仿真交易" },
     { path: "/live-trading", heading: "实盘交易" },
+    { path: "/risk-center", heading: "风控中心" },
     { path: "/portfolio", heading: "资产持仓" },
     { path: "/notifications", heading: "通知中心" },
     { path: "/settings", heading: "设置中心" },

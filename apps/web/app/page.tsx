@@ -51,6 +51,7 @@ export default async function HomePage() {
         <div className="card portalSection">
           <h2>快捷入口</h2>
           <div className="portalQuickGrid">
+            <Link href="/risk-center">风控中心</Link>
             <Link href="/paper-trading">仿真交易大厅</Link>
             <Link href="/live-trading">实盘执行大厅</Link>
             <Link href="/portfolio">资产持仓中心</Link>
