@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.models import BrokerSessionStatus, LiveAsset, LiveOrder, LivePosition, LiveTrade, OrderPreview
 from app.services.audit import write_audit
 from app.services.broker import get_broker
+from app.services.replay_link import append_replay_record
 from app.services.risk import RiskService
 
 
@@ -82,12 +83,48 @@ class LiveTradingService:
         self.db.flush()
         if preview.decision == "reject":
             order.status = "rejected"
+            append_replay_record(
+                self.db,
+                symbol=symbol,
+                strategy_key="",
+                recommendation_level=recommendation_level,
+                source_type="live_order",
+                payload={
+                    "order_id": order.id,
+                    "status": order.status,
+                    "side": side.lower(),
+                    "price": price,
+                    "quantity": quantity,
+                    "manual_ack": manual_ack,
+                    "auto_submit": auto_submit,
+                    "is_paper": False,
+                    "is_live": True,
+                },
+            )
             write_audit(self.db, action="live.place", detail=f"order_id={order.id}; rejected_by_preview=true")
             self.db.commit()
             self.db.refresh(order)
             return order
         if preview.decision == "manual_review_required":
             order.status = "previewed"
+            append_replay_record(
+                self.db,
+                symbol=symbol,
+                strategy_key="",
+                recommendation_level=recommendation_level,
+                source_type="live_order",
+                payload={
+                    "order_id": order.id,
+                    "status": order.status,
+                    "side": side.lower(),
+                    "price": price,
+                    "quantity": quantity,
+                    "manual_ack": manual_ack,
+                    "auto_submit": auto_submit,
+                    "is_paper": False,
+                    "is_live": True,
+                },
+            )
             write_audit(self.db, action="live.place", detail=f"order_id={order.id}; manual_review_required=true")
             self.db.commit()
             self.db.refresh(order)
@@ -100,6 +137,24 @@ class LiveTradingService:
             trade = LiveTrade(order_id=order.id, symbol=symbol, side=side.lower(), price=price, quantity=quantity)
             self.db.add(trade)
             self._update_position(symbol, side.lower(), price, quantity)
+        append_replay_record(
+            self.db,
+            symbol=symbol,
+            strategy_key="",
+            recommendation_level=recommendation_level,
+            source_type="live_order",
+            payload={
+                "order_id": order.id,
+                "status": order.status,
+                "side": side.lower(),
+                "price": price,
+                "quantity": quantity,
+                "manual_ack": manual_ack,
+                "auto_submit": auto_submit,
+                "is_paper": False,
+                "is_live": True,
+            },
+        )
         write_audit(self.db, action="live.place", detail=f"order_id={order.id}; final_status={order.status}")
         self.db.commit()
         self.db.refresh(order)

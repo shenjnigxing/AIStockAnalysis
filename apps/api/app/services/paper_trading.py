@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import PaperAccount, PaperAsset, PaperOrder, PaperPosition, PaperTrade
 from app.services.audit import write_audit
+from app.services.replay_link import append_replay_record
 from app.services.risk import RiskService
 
 
@@ -53,12 +54,46 @@ class PaperTradingService:
 
         if preview["decision"] == "reject":
             order.status = "rejected"
+            append_replay_record(
+                self.db,
+                symbol=symbol,
+                strategy_key="",
+                recommendation_level=recommendation_level,
+                source_type="paper_order",
+                payload={
+                    "order_id": order.id,
+                    "status": order.status,
+                    "side": side.lower(),
+                    "price": price,
+                    "quantity": quantity,
+                    "decision": preview["decision"],
+                    "is_paper": True,
+                    "is_live": False,
+                },
+            )
             write_audit(self.db, action="paper.place", detail=f"order_id={order.id}; final_status=rejected")
             self.db.commit()
             self.db.refresh(order)
             return order
         if preview["decision"] == "manual_review_required":
             order.status = "created"
+            append_replay_record(
+                self.db,
+                symbol=symbol,
+                strategy_key="",
+                recommendation_level=recommendation_level,
+                source_type="paper_order",
+                payload={
+                    "order_id": order.id,
+                    "status": order.status,
+                    "side": side.lower(),
+                    "price": price,
+                    "quantity": quantity,
+                    "decision": preview["decision"],
+                    "is_paper": True,
+                    "is_live": False,
+                },
+            )
             write_audit(self.db, action="paper.place", detail=f"order_id={order.id}; final_status=manual_review_required")
             self.db.commit()
             self.db.refresh(order)
@@ -67,12 +102,46 @@ class PaperTradingService:
         filled = self._match(order)
         if not filled:
             order.status = "submitted"
+            append_replay_record(
+                self.db,
+                symbol=symbol,
+                strategy_key="",
+                recommendation_level=recommendation_level,
+                source_type="paper_order",
+                payload={
+                    "order_id": order.id,
+                    "status": order.status,
+                    "side": side.lower(),
+                    "price": price,
+                    "quantity": quantity,
+                    "decision": preview["decision"],
+                    "is_paper": True,
+                    "is_live": False,
+                },
+            )
             write_audit(self.db, action="paper.place", detail=f"order_id={order.id}; final_status=submitted")
             self.db.commit()
             self.db.refresh(order)
             return order
 
         order.status = "filled"
+        append_replay_record(
+            self.db,
+            symbol=symbol,
+            strategy_key="",
+            recommendation_level=recommendation_level,
+            source_type="paper_order",
+            payload={
+                "order_id": order.id,
+                "status": order.status,
+                "side": side.lower(),
+                "price": price,
+                "quantity": quantity,
+                "decision": preview["decision"],
+                "is_paper": True,
+                "is_live": False,
+            },
+        )
         write_audit(self.db, action="paper.place", detail=f"order_id={order.id}; final_status=filled")
         self.db.commit()
         self.db.refresh(order)

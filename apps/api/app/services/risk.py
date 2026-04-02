@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import KillSwitchStatus, PaperAccount, PaperOrder, PaperPosition, RiskConfig, RiskEvent
 from app.services.audit import write_audit
+from app.services.replay_link import append_replay_record
 
 
 DEFAULT_RISK_CONFIG = {
@@ -182,6 +183,25 @@ class RiskService:
             ),
         )
         self.db.add(event)
+        if decision != "pass" or warnings:
+            append_replay_record(
+                self.db,
+                symbol=symbol,
+                strategy_key="",
+                recommendation_level=recommendation_level,
+                source_type="risk_event",
+                payload={
+                    "channel": channel,
+                    "decision": decision,
+                    "hard_reject_rules": hard,
+                    "warning_rules": warnings,
+                    "manual_review_rules": manual,
+                    "estimated_cost": round(amount, 2),
+                    "estimated_position_ratio": round(min(1.0, projected_ratio), 4),
+                    "is_paper": channel == "paper",
+                    "is_live": channel == "live",
+                },
+            )
         self.db.commit()
         return {
             "decision": decision,

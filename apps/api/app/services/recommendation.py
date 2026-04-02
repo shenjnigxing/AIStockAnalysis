@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.models import DailyBar, RecommendationResult, RecommendationRun, ScreenerCandidate, StrategyDefinition, StrategyRun, StrategySignal, RealtimeQuote
 from app.services.audit import write_audit
 from app.services.llm_explainer import get_llm_explainer
+from app.services.replay_link import append_replay_record
 from app.services.strategy_engine import StrategyRegistry
 
 
@@ -279,6 +280,24 @@ class RecommendationService:
         for idx, row in enumerate(rows, start=1):
             row.final_rank = idx
             self.db.add(row)
+            append_replay_record(
+                self.db,
+                symbol=row.symbol,
+                strategy_key=(json.loads(row.hit_strategies)[0] if json.loads(row.hit_strategies) else ""),
+                recommendation_level=row.recommendation_level,
+                source_type="recommendation",
+                payload={
+                    "recommendation_run_id": run.id,
+                    "final_rank": row.final_rank,
+                    "total_score": row.total_score,
+                    "action_suggestion": row.action_suggestion,
+                    "risk_score": row.risk_score,
+                    "confidence_level": row.confidence_level,
+                    "market_state": market_state,
+                    "is_paper": False,
+                    "is_live": False,
+                },
+            )
 
         write_audit(
             self.db,

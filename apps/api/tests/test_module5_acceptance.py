@@ -89,3 +89,44 @@ def test_module5_init_replay_and_admin_endpoints() -> None:
     # In memory sqlite mode, backup/restore should be skipped gracefully.
     assert backup.json()["status"] in {"ok", "skipped", "failed"}
     assert restore.json()["status"] in {"ok", "skipped", "failed"}
+
+
+def test_module5_replay_center_links_recommendation_paper_live_risk() -> None:
+    assert client.post("/api/data/sync/master", json={"force_full": False}).status_code == 200
+    assert client.post("/api/data/sync/realtime", json={"symbols": ["000001", "600000"]}).status_code == 200
+    assert client.post("/api/screener/run", json={"mode": "intraday", "filters": {"top_n": 20, "min_change_pct": -8}}).status_code == 200
+    assert client.post("/api/recommendation/run", json={"market_state": "neutral", "llm_enabled": False}).status_code == 200
+
+    paper = client.post(
+        "/api/paper/orders",
+        json={"symbol": "000001", "side": "buy", "price": 10, "quantity": 100, "recommendation_level": "A"},
+    )
+    assert paper.status_code == 200
+
+    assert client.post("/api/risk/kill-switch/disable", json={"reason": "module5-link-check"}).status_code == 200
+    live = client.post(
+        "/api/live/order",
+        json={"symbol": "000001", "side": "buy", "price": 10, "quantity": 100, "recommendation_level": "A", "manual_ack": True},
+    )
+    assert live.status_code == 200
+
+    today = date.today().isoformat()
+    replay_day = client.get(f"/api/replay/day/{today}")
+    assert replay_day.status_code == 200
+    rows = replay_day.json()["items"]
+    assert len(rows) >= 3
+    sources = {row.get("source_type", "") for row in rows}
+    assert "recommendation" in sources
+    assert "paper_order" in sources
+    assert "live_order" in sources
+
+    replay_reco = client.get(f"/api/replay/day/{today}?source_type=recommendation")
+    replay_paper = client.get(f"/api/replay/day/{today}?source_type=paper_order")
+    assert replay_reco.status_code == 200
+    assert replay_paper.status_code == 200
+    assert replay_reco.json()["count"] >= 1
+    assert replay_paper.json()["count"] >= 1
+
+    summary = client.get(f"/api/replay/summary/{today}")
+    assert summary.status_code == 200
+    assert summary.json()["by_source"].get("recommendation", 0) >= 1
