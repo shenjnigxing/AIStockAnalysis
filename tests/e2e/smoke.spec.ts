@@ -40,6 +40,7 @@ test("interactive action panels render", async ({ page }) => {
   await page.goto("/recommendations");
   await expect(page.getByRole("button", { name: "运行推荐" })).toBeVisible();
   await expect(page.getByText("市场状态")).toBeVisible();
+  await expect(page.getByText("LLM提供方")).toBeVisible();
 
   await page.goto("/backtests");
   await expect(page.getByRole("button", { name: "执行回测" })).toBeVisible();
@@ -53,4 +54,10 @@ test("interactive action panels render", async ({ page }) => {
   await page.goto("/live-trading");
   await expect(page.getByRole("button", { name: "立即同步" })).toBeVisible();
   await expect(page.getByText("股票代码").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "保存灰度配置" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "探测能力" })).toBeVisible();
+
+  await page.goto("/settings");
+  await expect(page.getByRole("button", { name: "立即备份" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "恢复默认" })).toBeVisible();
 });
