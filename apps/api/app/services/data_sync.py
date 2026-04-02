@@ -139,6 +139,7 @@ class DataSyncService:
         write_audit(self.db, action="data.sync.start", detail=f"job_type={job_type}; params={json.dumps(params, ensure_ascii=True, default=str)}")
         self.db.commit()
         self.db.refresh(job)
+        job_id = job.id
         try:
             result = runner(job)
             job.status = "completed"
@@ -150,7 +151,7 @@ class DataSyncService:
             return job
         except Exception as exc:
             self.db.rollback()
-            job = self.db.get(SyncJob, job.id)
+            job = self.db.get(SyncJob, job_id)
             assert job is not None
             job.status = "failed"
             job.error_message = str(exc)

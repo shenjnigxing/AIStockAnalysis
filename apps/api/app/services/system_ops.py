@@ -306,6 +306,11 @@ class AdminService:
             return {"status": "failed", "message": "source database file not found", "marker": marker}
 
         backup_file = self._backup_root() / f"stock_assistant_{marker}.db"
+        # Log backup intent before file copy so restore keeps an admin.backup trace.
+        self._audit_best_effort(
+            action="admin.backup",
+            detail=f"marker={marker}; status=started; source={source_db}; target={backup_file}",
+        )
         shutil.copy2(source_db, backup_file)
         audit_error = self._audit_best_effort(
             action="admin.backup",
