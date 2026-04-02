@@ -1,0 +1,2 @@
+-- SQL bootstrap placeholder
+-- Keep migration files and seed SQL scripts under this directory.
