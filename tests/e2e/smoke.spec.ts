@@ -61,4 +61,9 @@ test("interactive action panels render", async ({ page }) => {
   await page.goto("/settings");
   await expect(page.getByRole("button", { name: "立即备份" })).toBeVisible();
   await expect(page.getByRole("button", { name: "恢复默认" })).toBeVisible();
+
+  await page.goto("/replay");
+  const exportCsv = page.getByText("导出CSV");
+  const exportHint = page.getByText("清空筛选");
+  await expect(exportCsv.or(exportHint)).toBeVisible();
 });

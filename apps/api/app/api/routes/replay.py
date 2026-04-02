@@ -1,7 +1,9 @@
 import json
+import csv
+from io import StringIO
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -18,20 +20,15 @@ def _safe_loads(raw: str) -> dict:
         return {}
 
 
-@router.get("/days")
-def replay_days(db: Session = Depends(get_db)) -> dict:
-    return {"items": ReplayService(db).days()}
-
-
-@router.get("/day/{trade_date}")
-def replay_day(
-    trade_date: str,
+def _filter_rows(
+    rows,
+    *,
     source_type: str = "",
     recommendation_level: str = "",
     outcome: str = "",
-    db: Session = Depends(get_db),
-) -> dict:
-    rows = ReplayService(db).by_day(date.fromisoformat(trade_date))
+    symbol: str = "",
+    strategy_key: str = "",
+) -> list[dict]:
     items = []
     for row in rows:
         record = _safe_loads(row.record_json)
@@ -43,8 +40,13 @@ def replay_day(
             continue
         if outcome and result != outcome:
             continue
+        if symbol and row.symbol != symbol:
+            continue
+        if strategy_key and row.strategy_key != strategy_key:
+            continue
         items.append(
             {
+                "trade_date": row.trade_date.isoformat(),
                 "symbol": row.symbol,
                 "strategy_key": row.strategy_key,
                 "recommendation_level": row.recommendation_level,
@@ -54,6 +56,33 @@ def replay_day(
                 "outcome": result,
             }
         )
+    return items
+
+
+@router.get("/days")
+def replay_days(db: Session = Depends(get_db)) -> dict:
+    return {"items": ReplayService(db).days()}
+
+
+@router.get("/day/{trade_date}")
+def replay_day(
+    trade_date: str,
+    source_type: str = "",
+    recommendation_level: str = "",
+    outcome: str = "",
+    symbol: str = "",
+    strategy_key: str = "",
+    db: Session = Depends(get_db),
+) -> dict:
+    rows = ReplayService(db).by_day(date.fromisoformat(trade_date))
+    items = _filter_rows(
+        rows,
+        source_type=source_type,
+        recommendation_level=recommendation_level,
+        outcome=outcome,
+        symbol=symbol,
+        strategy_key=strategy_key,
+    )
     return {"items": items, "count": len(items)}
 
 
@@ -105,3 +134,61 @@ def replay_summary(trade_date: str, db: Session = Depends(get_db)) -> dict:
         by_level[row.recommendation_level] = by_level.get(row.recommendation_level, 0) + 1
         by_outcome[outcome] = by_outcome.get(outcome, 0) + 1
     return {"trade_date": trade_date, "by_source": by_source, "by_level": by_level, "by_outcome": by_outcome}
+
+
+@router.get("/export/{trade_date}")
+def replay_export(
+    trade_date: str,
+    source_type: str = "",
+    recommendation_level: str = "",
+    outcome: str = "",
+    symbol: str = "",
+    strategy_key: str = "",
+    format: str = "csv",
+    db: Session = Depends(get_db),
+):
+    rows = ReplayService(db).by_day(date.fromisoformat(trade_date))
+    items = _filter_rows(
+        rows,
+        source_type=source_type,
+        recommendation_level=recommendation_level,
+        outcome=outcome,
+        symbol=symbol,
+        strategy_key=strategy_key,
+    )
+    fmt = format.lower().strip()
+    if fmt == "json":
+        return {"trade_date": trade_date, "count": len(items), "items": items}
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "trade_date",
+            "symbol",
+            "strategy_key",
+            "recommendation_level",
+            "source_type",
+            "outcome",
+            "record_json",
+        ]
+    )
+    for item in items:
+        writer.writerow(
+            [
+                item["trade_date"],
+                item["symbol"],
+                item["strategy_key"],
+                item["recommendation_level"],
+                item["source_type"],
+                item["outcome"],
+                json.dumps(item["record"], ensure_ascii=False),
+            ]
+        )
+    content = output.getvalue()
+    filename = f"replay_{trade_date}.csv"
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

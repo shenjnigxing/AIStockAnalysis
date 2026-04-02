@@ -2,6 +2,8 @@ from datetime import date
 
 from fastapi.testclient import TestClient
 
+from app.db.models import ReplayRecord
+from app.db.session import SessionLocal
 from app.main import app
 
 
@@ -110,6 +112,18 @@ def test_module5_replay_center_links_recommendation_paper_live_risk() -> None:
     )
     assert live.status_code == 200
 
+    with SessionLocal() as db:
+        db.add(
+            ReplayRecord(
+                trade_date=date.today(),
+                symbol="000001",
+                strategy_key="platform_breakout",
+                recommendation_level="B",
+                record_json='{"source_type":"manual_seed","status":"filled"}',
+            )
+        )
+        db.commit()
+
     today = date.today().isoformat()
     replay_day = client.get(f"/api/replay/day/{today}")
     assert replay_day.status_code == 200
@@ -122,11 +136,25 @@ def test_module5_replay_center_links_recommendation_paper_live_risk() -> None:
 
     replay_reco = client.get(f"/api/replay/day/{today}?source_type=recommendation")
     replay_paper = client.get(f"/api/replay/day/{today}?source_type=paper_order")
+    replay_symbol = client.get(f"/api/replay/day/{today}?symbol=000001")
+    replay_strategy = client.get(f"/api/replay/day/{today}?strategy_key=platform_breakout")
     assert replay_reco.status_code == 200
     assert replay_paper.status_code == 200
+    assert replay_symbol.status_code == 200
+    assert replay_strategy.status_code == 200
     assert replay_reco.json()["count"] >= 1
     assert replay_paper.json()["count"] >= 1
+    assert replay_symbol.json()["count"] >= 1
+    assert replay_strategy.json()["count"] >= 1
 
     summary = client.get(f"/api/replay/summary/{today}")
     assert summary.status_code == 200
     assert summary.json()["by_source"].get("recommendation", 0) >= 1
+
+    export_json = client.get(f"/api/replay/export/{today}?format=json&source_type=recommendation")
+    export_csv = client.get(f"/api/replay/export/{today}?format=csv&source_type=recommendation")
+    assert export_json.status_code == 200
+    assert export_csv.status_code == 200
+    assert export_json.json()["count"] >= 1
+    assert export_csv.headers["content-type"].startswith("text/csv")
+    assert "symbol" in export_csv.text

@@ -11,6 +11,8 @@ type ReplayPageProps = {
     source_type?: string;
     recommendation_level?: string;
     outcome?: string;
+    symbol?: string;
+    strategy_key?: string;
   };
 };
 
@@ -20,13 +22,16 @@ function buildReplayQuery(params: Record<string, string>) {
 }
 
 export default async function ReplayPage({ searchParams }: ReplayPageProps) {
+  const apiBase = process.env.API_BASE_URL || "http://localhost:8000";
   const daysRes = await fetchApiResult("/api/replay/days", { items: [] as string[] });
   const days = daysRes.data.items;
   const selectedDay = searchParams?.day || days[0];
   const replayQuery = buildReplayQuery({
     source_type: searchParams?.source_type || "",
     recommendation_level: searchParams?.recommendation_level || "",
-    outcome: searchParams?.outcome || ""
+    outcome: searchParams?.outcome || "",
+    symbol: searchParams?.symbol || "",
+    strategy_key: searchParams?.strategy_key || ""
   });
   const recordsRes = selectedDay
     ? await fetchApiResult(`/api/replay/day/${selectedDay}${replayQuery}`, { items: [] as Array<Record<string, unknown>>, count: 0 })
@@ -45,7 +50,18 @@ export default async function ReplayPage({ searchParams }: ReplayPageProps) {
       <div className="grid">
         <div className="card">
           <h2>筛选器</h2>
-          <p>交易日：{days.join(", ") || "暂无"}</p>
+          <p>交易日：</p>
+          {days.length > 0 ? (
+            <div className="portalQuickGrid">
+              {days.slice(0, 10).map((day) => (
+                <Link key={day} href={`/replay${buildReplayQuery({ day })}`}>
+                  {day}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p>暂无</p>
+          )}
           <p>
             <Link href="/replay">清空筛选</Link>
           </p>
@@ -53,7 +69,7 @@ export default async function ReplayPage({ searchParams }: ReplayPageProps) {
             <p>
               当前：{selectedDay}，来源=
               {searchParams?.source_type || "全部"}，等级={searchParams?.recommendation_level || "全部"}，结果=
-              {searchParams?.outcome || "全部"}
+              {searchParams?.outcome || "全部"}，股票={searchParams?.symbol || "全部"}，战法={searchParams?.strategy_key || "全部"}
             </p>
           ) : null}
           {selectedDay ? (
@@ -64,6 +80,36 @@ export default async function ReplayPage({ searchParams }: ReplayPageProps) {
               <Link href={`/replay${buildReplayQuery({ day: selectedDay, source_type: "risk_event" })}`}>仅风控</Link>
               <Link href={`/replay${buildReplayQuery({ day: selectedDay, recommendation_level: "A" })}`}>等级A</Link>
               <Link href={`/replay${buildReplayQuery({ day: selectedDay, outcome: "filled" })}`}>结果filled</Link>
+              <Link href={`/replay${buildReplayQuery({ day: selectedDay, symbol: "000001" })}`}>股票000001</Link>
+              <Link href={`/replay${buildReplayQuery({ day: selectedDay, strategy_key: "platform_breakout" })}`}>战法平台突破</Link>
+              <a
+                href={`${apiBase}/api/replay/export/${selectedDay}${buildReplayQuery({
+                  source_type: searchParams?.source_type || "",
+                  recommendation_level: searchParams?.recommendation_level || "",
+                  outcome: searchParams?.outcome || "",
+                  symbol: searchParams?.symbol || "",
+                  strategy_key: searchParams?.strategy_key || "",
+                  format: "csv"
+                })}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                导出CSV
+              </a>
+              <a
+                href={`${apiBase}/api/replay/export/${selectedDay}${buildReplayQuery({
+                  source_type: searchParams?.source_type || "",
+                  recommendation_level: searchParams?.recommendation_level || "",
+                  outcome: searchParams?.outcome || "",
+                  symbol: searchParams?.symbol || "",
+                  strategy_key: searchParams?.strategy_key || "",
+                  format: "json"
+                })}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                导出JSON
+              </a>
             </div>
           ) : null}
         </div>
