@@ -1,10 +1,14 @@
 import {
   ApiHealth,
   BacktestJob,
+  BacktestReportDetail,
+  BrokerCapabilities,
   BacktestReport,
   DataJob,
   DataQualityIssue,
+  DrReadiness,
   InitStatus,
+  LiveGrayConfig,
   LiveAssetItem,
   LiveOrderItem,
   LivePositionItem,
@@ -13,6 +17,7 @@ import {
   PaperOrderItem,
   PaperPositionItem,
   RecommendationItem,
+  RuntimeHealth,
   ScreenerCandidate,
   SettingItem,
   StrategyItem
@@ -166,4 +171,50 @@ export async function fetchBacktestJobs(): Promise<BacktestJob[]> {
 
 export async function fetchBacktestReport(jobId: number): Promise<BacktestReport | null> {
   return safeFetch<BacktestReport | null>(`/api/backtest/report/${jobId}`, null);
+}
+
+export async function fetchBacktestReportDetail(jobId: number): Promise<BacktestReportDetail | null> {
+  return safeFetch<BacktestReportDetail | null>(`/api/backtest/report/${jobId}/detail`, null);
+}
+
+export async function fetchRuntimeHealth(): Promise<RuntimeHealth> {
+  return safeFetch<RuntimeHealth>("/api/admin/runtime-health", {
+    status: "degraded",
+    degraded_reasons: ["unreachable"],
+    services: {},
+    resilience: { latest_backup_at: "", fresh_backup_within_24h: false, backup_count: 0 },
+    timestamp: ""
+  });
+}
+
+export async function fetchDrReadiness(): Promise<DrReadiness> {
+  return safeFetch<DrReadiness>("/api/admin/dr/readiness", {
+    score: 0,
+    status: "partial",
+    checklist: {},
+    latest_backup_marker: "",
+    timestamp: ""
+  });
+}
+
+export async function fetchLiveGrayConfig(): Promise<LiveGrayConfig> {
+  const data = await safeFetch<{ config: LiveGrayConfig }>("/api/risk/live-gray/config", {
+    config: {
+      live_gray_mode_enabled: true,
+      live_gray_max_notional: 50000,
+      live_gray_whitelist: [],
+      live_gray_blocklist: [],
+      live_auto_submit: false
+    }
+  });
+  return data.config;
+}
+
+export async function fetchLiveBrokerCapabilities(provider?: string): Promise<BrokerCapabilities> {
+  const query = provider ? `?provider=${encodeURIComponent(provider)}` : "";
+  return safeFetch<BrokerCapabilities>(`/api/live/broker/capabilities${query}`, {
+    provider: provider || "unknown",
+    ready: false,
+    supports: {}
+  });
 }

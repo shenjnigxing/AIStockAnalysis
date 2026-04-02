@@ -2,6 +2,8 @@ export type ApiHealth = {
   status: string;
   app_name?: string;
   environment?: string;
+  broker_provider?: string;
+  llm_provider?: string;
 };
 
 export type RecommendationItem = {
@@ -120,4 +122,54 @@ export type BacktestJob = {
 export type BacktestReport = {
   job_id: number;
   metrics: Record<string, unknown>;
+};
+
+export type RuntimeHealth = {
+  status: "ok" | "degraded";
+  degraded_reasons: string[];
+  services: Record<string, string>;
+  resilience: {
+    latest_backup_at: string;
+    fresh_backup_within_24h: boolean;
+    backup_count: number;
+  };
+  timestamp: string;
+};
+
+export type DrReadiness = {
+  score: number;
+  status: "ready" | "partial";
+  checklist: Record<string, boolean>;
+  latest_backup_marker: string;
+  timestamp: string;
+};
+
+export type LiveGrayConfig = {
+  live_gray_mode_enabled: boolean;
+  live_gray_max_notional: number;
+  live_gray_whitelist: string[];
+  live_gray_blocklist: string[];
+  live_auto_submit: boolean;
+};
+
+export type BrokerCapabilities = {
+  provider: string;
+  ready: boolean;
+  supports: Record<string, boolean>;
+  note?: string;
+  required_fields?: string[];
+};
+
+export type BacktestReportDetail = {
+  job_id: number;
+  metrics: Record<string, unknown>;
+  granularity: {
+    daily_returns: Array<{ point_time: string; return: number }>;
+    rolling_drawdown: Array<{ point_time: string; drawdown: number }>;
+    trade_distribution: {
+      buy_count: number;
+      sell_count: number;
+      avg_trade_notional: number;
+    };
+  };
 };

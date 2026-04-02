@@ -11,12 +11,16 @@ export default async function BacktestsPage() {
   const reportRes = latestJob
     ? await fetchApiResult(`/api/backtest/report/${String(latestJob.job_id)}`, null)
     : { data: null, ok: true, error: null };
+  const detailRes = latestJob
+    ? await fetchApiResult(`/api/backtest/report/${String(latestJob.job_id)}/detail`, null)
+    : { data: null, ok: true, error: null };
   const report = reportRes.data;
+  const detail = detailRes.data as { granularity?: Record<string, unknown> } | null;
   const reportMetrics =
     report && typeof report === "object" && "metrics" in report
       ? (report as { metrics: Record<string, unknown> }).metrics
       : {};
-  const pageState = resolvePageState([jobsRes, reportRes], jobs.length > 0);
+  const pageState = resolvePageState([jobsRes, reportRes, detailRes], jobs.length > 0);
 
   return (
     <main className="container">
@@ -92,6 +96,16 @@ export default async function BacktestsPage() {
                 ))}
               </tbody>
             </table>
+          )}
+        </div>
+        <div className="card">
+          <h2>细粒度分析</h2>
+          {!latestJob ? (
+            <p>暂无细粒度分析。</p>
+          ) : !detail ? (
+            <p>无法读取任务 #{String(latestJob.job_id)} 的细粒度报告。</p>
+          ) : (
+            <pre>{JSON.stringify(detail.granularity ?? {}, null, 2)}</pre>
           )}
         </div>
       </div>

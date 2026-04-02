@@ -7,9 +7,12 @@ import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
 
 export default async function RecommendationsPage() {
-  const recsRes = await fetchApiResult("/api/recommendation/top?limit=20", { items: [] as Array<Record<string, unknown>> });
+  const [recsRes, configRes] = await Promise.all([
+    fetchApiResult("/api/recommendation/top?limit=20", { items: [] as Array<Record<string, unknown>> }),
+    fetchApiResult("/api/system/config-check", { llm: {} as Record<string, unknown> })
+  ]);
   const items = recsRes.data.items;
-  const pageState = resolvePageState([recsRes], items.length > 0);
+  const pageState = resolvePageState([recsRes, configRes], items.length > 0);
 
   return (
     <main className="container">
@@ -32,10 +35,24 @@ export default async function RecommendationsPage() {
                 { label: "弱势", value: "weak" }
               ]
             },
-            { name: "llm_enabled", label: "启用大模型修正", kind: "boolean", defaultValue: false }
+            { name: "llm_enabled", label: "启用大模型修正", kind: "boolean", defaultValue: false },
+            {
+              name: "llm_provider",
+              label: "LLM提供方",
+              kind: "select",
+              defaultValue: "mock",
+              options: [
+                { label: "Mock（本地降级）", value: "mock" },
+                { label: "OpenAI兼容", value: "openai_compat" }
+              ]
+            }
           ]}
           buttonText="运行推荐"
         />
+      </div>
+      <div className="card">
+        <h2>LLM运行配置</h2>
+        <pre>{JSON.stringify(configRes.data.llm ?? {}, null, 2)}</pre>
       </div>
       <div className="card">
         <table className="table">

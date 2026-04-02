@@ -4,12 +4,14 @@ import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
 
 export default async function DashboardPage() {
-  const [statusRes, recsRes] = await Promise.all([
+  const [statusRes, recsRes, runtimeRes, drRes] = await Promise.all([
     fetchApiResult("/api/system/status", { status: "不可达", environment: "unknown" }),
-    fetchApiResult("/api/recommendation/top?limit=20", { items: [] as Array<Record<string, unknown>> })
+    fetchApiResult("/api/recommendation/top?limit=20", { items: [] as Array<Record<string, unknown>> }),
+    fetchApiResult("/api/admin/runtime-health", { status: "degraded", services: {}, resilience: {} as Record<string, unknown>, degraded_reasons: [] as string[] }),
+    fetchApiResult("/api/admin/dr/readiness", { score: 0, status: "partial", checklist: {} as Record<string, boolean> })
   ]);
   const recs = recsRes.data.items;
-  const pageState = resolvePageState([statusRes, recsRes], recs.length > 0 && statusRes.data.status !== "不可达");
+  const pageState = resolvePageState([statusRes, recsRes, runtimeRes, drRes], recs.length > 0 && statusRes.data.status !== "不可达");
 
   return (
     <main className="container">
@@ -32,6 +34,14 @@ export default async function DashboardPage() {
         <div className="metricCard">
           <small>运行模式</small>
           <strong>{String(statusRes.data.environment ?? "dev")}</strong>
+        </div>
+        <div className="metricCard">
+          <small>运行健康</small>
+          <strong>{String(runtimeRes.data.status ?? "unknown")}</strong>
+        </div>
+        <div className="metricCard">
+          <small>灾备就绪分</small>
+          <strong>{String(drRes.data.score ?? 0)}</strong>
         </div>
       </section>
       <div className="grid">
@@ -68,6 +78,14 @@ export default async function DashboardPage() {
             <li>盘中建议开启自动刷新并结合通知中心关注风控事件。</li>
             <li>出现异常时优先查看数据中心同步任务与系统配置检查。</li>
           </ul>
+        </div>
+        <div className="card">
+          <h2>运行健康</h2>
+          <pre>{JSON.stringify(runtimeRes.data, null, 2)}</pre>
+        </div>
+        <div className="card">
+          <h2>灾备就绪</h2>
+          <pre>{JSON.stringify(drRes.data, null, 2)}</pre>
         </div>
       </div>
     </main>

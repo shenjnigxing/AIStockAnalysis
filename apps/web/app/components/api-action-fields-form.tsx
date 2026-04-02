@@ -80,7 +80,7 @@ export function ApiActionFieldsForm({
   path: string;
   pathTemplate?: string;
   fields: ActionField[];
-  method?: "POST" | "PUT" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   buttonText?: string;
   refreshAfterSuccess?: boolean;
 }) {
