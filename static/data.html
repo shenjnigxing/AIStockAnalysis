@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据中心 - A 股数据系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 0; }
+
+        .navbar {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+        }
+        .navbar-brand { color: #fff; font-size: 20px; font-weight: bold; text-decoration: none; }
+        .navbar-menu { display: flex; gap: 10px; }
+        .navbar-menu a {
+            color: #ccc;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        .navbar-menu a:hover, .navbar-menu a.active { background: rgba(255,255,255,0.1); color: #fff; }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #1a1a2e;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-left: 4px solid #4CAF50;
+            padding-left: 12px;
+        }
+
+        .card h3 {
+            color: #1a1a2e;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        /* 选项卡 */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .tab:hover { background: #f5f5f5; }
+        .tab.active { background: #4CAF50; color: white; }
+
+        /* 表格 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover { background: #f8f9fa; }
+
+        .text-up { color: #e74c3c; }
+        .text-down { color: #27ae60; }
+
+        /* 按钮 */
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover { background: #45a049; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #4CAF50;
+            color: #4CAF50;
+        }
+        .btn-outline:hover { background: #4CAF50; color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+        /* 表单 */
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        input, select {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        /* 统计网格 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .stat-value { font-size: 28px; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { font-size: 14px; opacity: 0.9; }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 14px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .pagination button:hover:not(:disabled) { background: #4CAF50; color: white; }
+        .pagination button:disabled { background: #f5f5f5; cursor: not-allowed; }
+        .pagination button.active { background: #4CAF50; color: white; }
+
+        /* 内容区域 */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">📈 A 股数据系统</a>
+            <div class="navbar-menu"></div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h2>📊 数据中心</h2>
+            <p style="color:#666; margin-bottom: 12px; font-size: 14px;">用于原始数据查询、历史导出与维护操作。图表分析请前往“K 线图”，策略推荐请前往“战法选股”。</p>
+            <div class="tabs">
+                <span class="tab active" onclick="switchTab('basic', this)">基本信息</span>
+                <span class="tab" onclick="switchTab('financial', this)">财务数据</span>
+                <span class="tab" onclick="switchTab('holder', this)">股东数据</span>
+                <span class="tab" onclick="switchTab('history', this)">历史数据</span>
+            </div>
+
+            <!-- 基本信息 -->
+            <div id="basicTab" class="tab-content active">
+                <div class="form-row">
+                    <input type="text" id="basicCode" placeholder="输入股票代码" style="width: 150px;">
+                    <button class="btn" onclick="loadBasicInfo()">查询</button>
+                    <a class="btn btn-outline" href="/ops">🛠️ 前往系统维护</a>
+                    <span id="backfillStatus" style="font-size:12px; color:#666;">补全基础数据等维护动作已迁移到系统维护页。</span>
+                </div>
+                <div id="basicContent">
+                    <p style="color: #999; text-align: center; padding: 40px;">请输入股票代码查询基本信息</p>
+                </div>
+            </div>
+
+            <!-- 财务数据 -->
+            <div id="financialTab" class="tab-content">
+                <div class="form-row">
+                    <input type="text" id="financialCode" placeholder="输入股票代码" style="width: 150px;">
+                    <select id="financialLimit">
+                        <option value="4">最近 4 期</option>
+                        <option value="8">最近 8 期</option>
+                        <option value="12">最近 12 期</option>
+                    </select>
+                    <button class="btn" onclick="loadFinancialInfo()">查询</button>
+                </div>
+                <div id="financialContent">
+                    <p style="color: #999; text-align: center; padding: 40px;">请输入股票代码查询财务数据</p>
+                </div>
+            </div>
+
+            <!-- 股东数据 -->
+            <div id="holderTab" class="tab-content">
+                <div class="form-row">
+                    <input type="text" id="holderCode" placeholder="输入股票代码" style="width: 150px;">
+                    <button class="btn" onclick="loadHolderInfo()">查询</button>
+                </div>
+                <div id="holderContent">
+                    <p style="color: #999; text-align: center; padding: 40px;">请输入股票代码查询股东数据</p>
+                </div>
+            </div>
+
+            <!-- 历史数据 -->
+            <div id="historyTab" class="tab-content">
+                <div class="form-row">
+                    <input type="text" id="historyCode" placeholder="输入股票代码" style="width: 150px;">
+                    <input type="date" id="startDate">
+                    <span>至</span>
+                    <input type="date" id="endDate">
+                    <select id="historyType">
+                        <option value="daily">日 K 线</option>
+                        <option value="5min">5 分钟 K 线</option>
+                        <option value="15min">15 分钟 K 线</option>
+                        <option value="30min">30 分钟 K 线</option>
+                        <option value="60min">60 分钟 K 线</option>
+                    </select>
+                    <button class="btn" onclick="loadHistoryData()">查询</button>
+                    <button class="btn btn-outline" onclick="exportHistory()">📥 导出 CSV</button>
+                </div>
+                <div id="historyContent">
+                    <p style="color: #999; text-align: center; padding: 40px;">请输入股票代码查询历史数据</p>
+                </div>
+                <div id="historyPagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app-common.js"></script>
+    <script>
+        const API_BASE = window.AStockApp.API_BASE;
+        window.AStockApp.renderNavbar('data');
+        let currentHistoryData = [];
+
+        async function resolveStockCode(inputValue) {
+            return window.AStockApp.resolveStockCode(inputValue);
+        }
+
+        async function backfillBasicData() {
+            const status = document.getElementById('backfillStatus');
+            status.textContent = '回填中，请稍候...';
+            try {
+                const res = await fetch(`${API_BASE}/basic/backfill?limit=300&financial_quarters=4`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || '回填失败');
+                status.textContent = `完成：${data.message}`;
+            } catch (e) {
+                status.textContent = `失败：${e.message}`;
+            }
+        }
+
+        // 切换选项卡
+        function switchTab(tabName, tabEl) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            tabEl.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        }
+
+        // 加载基本信息
+        async function loadBasicInfo() {
+            const raw = document.getElementById('basicCode').value.trim();
+            if (!raw) {
+                alert('请输入股票代码');
+                return;
+            }
+            let code = raw;
+            try {
+                code = await resolveStockCode(raw);
+                document.getElementById('basicCode').value = code;
+            } catch (e) {
+                alert(`股票解析失败：${e.message}`);
+                return;
+            }
+
+            const content = document.getElementById('basicContent');
+            content.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading"></span> 加载中...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/basic/${code}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    content.innerHTML = `
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value">${data.name || '--'}</div>
+                                <div class="stat-label">股票名称</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                <div class="stat-value">${data.code || '--'}</div>
+                                <div class="stat-label">股票代码</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                <div class="stat-value">${data.list_date || '--'}</div>
+                                <div class="stat-label">上市日期</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                                <div class="stat-value">${data.total_shares ? data.total_shares + '亿' : '--'}</div>
+                                <div class="stat-label">总股本 (亿股)</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                                <div class="stat-value">${data.float_shares ? data.float_shares + '亿' : '--'}</div>
+                                <div class="stat-label">流通股本 (亿股)</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                                <div class="stat-value">${data.industry || '--'}</div>
+                                <div class="stat-label">所属行业</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #fccb90 0%, #d57eeb 100%);">
+                                <div class="stat-value">${data.area || '--'}</div>
+                                <div class="stat-label">地区</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);">
+                                <div class="stat-value">${data.market || '--'}</div>
+                                <div class="stat-label">板块</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 40px;">未找到该股票的基本信息</p>';
+                }
+            } catch (err) {
+                content.innerHTML = `<p style="color: #e74c3c; text-align: center; padding: 40px;">加载失败：${err.message}</p>`;
+            }
+        }
+
+        // 加载财务数据
+        async function loadFinancialInfo() {
+            const raw = document.getElementById('financialCode').value.trim();
+            const limit = document.getElementById('financialLimit').value;
+
+            if (!raw) {
+                alert('请输入股票代码');
+                return;
+            }
+            let code = raw;
+            try {
+                code = await resolveStockCode(raw);
+                document.getElementById('financialCode').value = code;
+            } catch (e) {
+                alert(`股票解析失败：${e.message}`);
+                return;
+            }
+
+            const content = document.getElementById('financialContent');
+            content.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading"></span> 加载中...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/financial/${code}?limit=${limit}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.data && data.data.length > 0) {
+                        let html = `
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>报告期</th>
+                                        <th>ROE(%)</th>
+                                        <th>净利率 (%)</th>
+                                        <th>毛利率 (%)</th>
+                                        <th>净利润 (亿)</th>
+                                        <th>每股收益 (元)</th>
+                                        <th>资产负债率 (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+                        data.data.forEach(row => {
+                            html += `
+                                <tr>
+                                    <td>${row.report_date}</td>
+                                    <td class="${row.roe_avg >= 0 ? 'text-up' : 'text-down'}">${(row.roe_avg * 100)?.toFixed(2) || '-'}%</td>
+                                    <td class="${row.net_margin >= 0 ? 'text-up' : 'text-down'}">${(row.net_margin * 100)?.toFixed(2) || '-'}%</td>
+                                    <td class="${row.gross_margin >= 0 ? 'text-up' : 'text-down'}">${(row.gross_margin * 100)?.toFixed(2) || '-'}%</td>
+                                    <td>${(row.net_profit / 1e8)?.toFixed(2) || '-'}</td>
+                                    <td>${row.eps_basic?.toFixed(3) || '-'}</td>
+                                    <td>${(row.debt_ratio * 100)?.toFixed(2) || '-'}%</td>
+                                </tr>
+                            `;
+                        });
+                        html += '</tbody></table>';
+                        content.innerHTML = html;
+                    } else {
+                        content.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">暂无财务数据</p>';
+                    }
+                } else {
+                    content.innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 40px;">未找到该股票的财务数据</p>';
+                }
+            } catch (err) {
+                content.innerHTML = `<p style="color: #e74c3c; text-align: center; padding: 40px;">加载失败：${err.message}</p>`;
+            }
+        }
+
+        // 加载股东数据
+        async function loadHolderInfo() {
+            const raw = document.getElementById('holderCode').value.trim();
+            if (!raw) {
+                alert('请输入股票代码');
+                return;
+            }
+            let code = raw;
+            try {
+                code = await resolveStockCode(raw);
+                document.getElementById('holderCode').value = code;
+            } catch (e) {
+                alert(`股票解析失败：${e.message}`);
+                return;
+            }
+
+            const content = document.getElementById('holderContent');
+            content.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading"></span> 加载中...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/holder/${code}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.data && data.data.length > 0) {
+                        const latest = data.data[0];
+                        content.innerHTML = `
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-value">${latest.holder_count || '--'}</div>
+                                    <div class="stat-label">股东户数</div>
+                                </div>
+                                <div class="stat-item" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                    <div class="stat-value">${latest.avg_holdings ? latest.avg_holdings.toFixed(2) : '--'}</div>
+                                    <div class="stat-label">户均持股 (万股)</div>
+                                </div>
+                                <div class="stat-item" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                    <div class="stat-value">${latest.top10_ratio ? latest.top10_ratio.toFixed(2) : '--'}%</div>
+                                    <div class="stat-label">前十大股东持股比例</div>
+                                </div>
+                                <div class="stat-item" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                                    <div class="stat-value">${latest.report_date || '--'}</div>
+                                    <div class="stat-label">报告期</div>
+                                </div>
+                            </div>
+                            ${data.data.length > 1 ? `
+                                <h3 style="margin-top: 30px; margin-bottom: 15px;">历史股东数据</h3>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>报告期</th>
+                                            <th>股东户数</th>
+                                            <th>户均持股 (万股)</th>
+                                            <th>前十大股东持股比例</th>
+                                            <th>环比变化</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.data.map(row => `
+                                            <tr>
+                                                <td>${row.report_date}</td>
+                                                <td>${row.holder_count || '-'}</td>
+                                                <td>${row.avg_holdings ? row.avg_holdings.toFixed(2) : '-'}</td>
+                                                <td>${row.top10_ratio ? row.top10_ratio.toFixed(2) : '-'}%</td>
+                                                <td>${row.holder_change_ratio ? (row.holder_change_ratio * 100).toFixed(2) : '-'}%</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            ` : ''}
+                        `;
+                    } else {
+                        content.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">暂无股东数据</p>';
+                    }
+                } else {
+                    content.innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 40px;">未找到该股票的股东数据</p>';
+                }
+            } catch (err) {
+                content.innerHTML = `<p style="color: #e74c3c; text-align: center; padding: 40px;">加载失败：${err.message}</p>`;
+            }
+        }
+
+        // 加载历史数据
+        async function loadHistoryData() {
+            const raw = document.getElementById('historyCode').value.trim();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const type = document.getElementById('historyType').value;
+
+            if (!raw) {
+                alert('请输入股票代码');
+                return;
+            }
+            let code = raw;
+            try {
+                code = await resolveStockCode(raw);
+                document.getElementById('historyCode').value = code;
+            } catch (e) {
+                alert(`股票解析失败：${e.message}`);
+                return;
+            }
+
+            const content = document.getElementById('historyContent');
+            content.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading"></span> 加载中...</div>';
+
+            try {
+                let url;
+                if (type === 'daily') {
+                    url = `${API_BASE}/kline/${code}?start_date=${startDate}&end_date=${endDate}`;
+                } else {
+                    const period = type.replace('min', '');
+                    url = `${API_BASE}/kline/${code}/min?period=${period}`;
+                }
+
+                const res = await fetch(url);
+                if (res.ok) {
+                    const data = await res.json();
+                    currentHistoryData = data.data || [];
+
+                    if (currentHistoryData.length > 0) {
+                        let html = `
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>日期/时间</th>
+                                        <th>开盘</th>
+                                        <th>最高</th>
+                                        <th>最低</th>
+                                        <th>收盘</th>
+                                        <th>成交量 (手)</th>
+                                        <th>成交额 (元)</th>
+                                        <th>涨跌幅 (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+                        currentHistoryData.forEach(row => {
+                            const changeClass = row.change_pct >= 0 ? 'text-up' : 'text-down';
+                            const changeSign = row.change_pct >= 0 ? '+' : '';
+                            html += `
+                                <tr>
+                                    <td>${row.date || row.time}</td>
+                                    <td>${row.open?.toFixed(2) || '-'}</td>
+                                    <td>${row.high?.toFixed(2) || '-'}</td>
+                                    <td>${row.low?.toFixed(2) || '-'}</td>
+                                    <td>${row.close?.toFixed(2) || '-'}</td>
+                                    <td>${(row.volume || 0).toFixed(0)}</td>
+                                    <td>${(row.amount || 0).toFixed(2)}</td>
+                                    <td class="${changeClass}">${changeSign}${row.change_pct?.toFixed(2) || '-'}%</td>
+                                </tr>
+                            `;
+                        });
+                        html += '</tbody></table>';
+                        content.innerHTML = html;
+                    } else {
+                        content.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">暂无历史数据</p>';
+                    }
+                } else {
+                    content.innerHTML = '<p style="color: #e74c3c; text-align: center; padding: 40px;">未找到该股票的历史数据</p>';
+                }
+            } catch (err) {
+                content.innerHTML = `<p style="color: #e74c3c; text-align: center; padding: 40px;">加载失败：${err.message}</p>`;
+            }
+        }
+
+        // 导出历史数据
+        function exportHistory() {
+            if (!currentHistoryData || currentHistoryData.length === 0) {
+                alert('没有可导出的数据');
+                return;
+            }
+
+            const code = document.getElementById('historyCode').value.trim();
+            const csv = [
+                ['日期', '开盘', '最高', '最低', '收盘', '成交量', '成交额', '涨跌幅'],
+                ...currentHistoryData.map(d => [d.date || d.time, d.open, d.high, d.low, d.close, d.volume, d.amount, d.change_pct])
+            ].map(row => row.join(',')).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${code}_history_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', () => {
+            // 设置日期范围默认值（最近一年）
+            const today = new Date();
+            const lastYear = new Date();
+            lastYear.setFullYear(lastYear.getFullYear() - 1);
+
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = lastYear.toISOString().split('T')[0];
+
+            // 默认示例代码，降低“空页面”感知
+            const defaultCode = '600000';
+            document.getElementById('basicCode').value = defaultCode;
+            document.getElementById('financialCode').value = defaultCode;
+            document.getElementById('holderCode').value = defaultCode;
+            document.getElementById('historyCode').value = defaultCode;
+            loadBasicInfo();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K 线图 - A 股数据系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 0; }
+
+        .navbar {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+        }
+        .navbar-brand { color: #fff; font-size: 20px; font-weight: bold; text-decoration: none; }
+        .navbar-menu { display: flex; gap: 10px; }
+        .navbar-menu a {
+            color: #ccc;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        .navbar-menu a:hover, .navbar-menu a.active { background: rgba(255,255,255,0.1); color: #fff; }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stock-info {
+            display: flex;
+            align-items: baseline;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .stock-name { font-size: 24px; font-weight: bold; color: #1a1a2e; }
+        .stock-code { color: #666; font-size: 14px; }
+        .stock-price { font-size: 28px; font-weight: bold; }
+        .stock-change { font-size: 16px; padding: 4px 10px; border-radius: 4px; }
+
+        .price-up { color: #e74c3c; }
+        .price-down { color: #27ae60; }
+        .bg-up { background: #fee; }
+        .bg-down { background: #efe; }
+
+        #chart-container {
+            width: 100%;
+            height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .indicator-row {
+            margin-top: 14px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .indicator-box {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 10px;
+            background: #fbfbfd;
+        }
+
+        .indicator-title {
+            font-size: 13px;
+            color: #444;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .indicator-chart {
+            width: 100%;
+            height: 180px;
+        }
+        .algo-panel {
+            margin-top: 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            background: linear-gradient(180deg, #fbfcff 0%, #f7fafc 100%);
+        }
+        .algo-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+        .algo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+        }
+        .algo-item {
+            background: #fff;
+            border: 1px solid #edf2f7;
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+        .algo-k {
+            font-size: 12px;
+            color: #64748b;
+        }
+        .algo-v {
+            margin-top: 3px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .signal-tags {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .signal-tag {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #374151;
+        }
+        .signal-tag.on {
+            border-color: #16a34a;
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .btn:hover { background: #45a049; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #4CAF50;
+            color: #4CAF50;
+        }
+        .btn-outline:hover { background: #4CAF50; color: white; }
+        .btn.active { background: #1a1a2e; }
+
+        select, input {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .stock-search {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .stat-label { font-size: 12px; color: #666; margin-bottom: 5px; }
+        .stat-value { font-size: 18px; font-weight: bold; color: #1a1a2e; }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">📈 A 股数据系统</a>
+            <div class="navbar-menu"></div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- 股票搜索 -->
+        <div class="card">
+            <div class="stock-search">
+                <input type="text" id="stockCodeInput" list="stockSuggestList" placeholder="输入股票代码/名称，如 600000 或 浦发银行" style="width: 260px;">
+                <datalist id="stockSuggestList"></datalist>
+                <button class="btn" onclick="loadChart()">加载 K 线</button>
+                <select id="dayRange" onchange="loadChart()">
+                    <option value="30">最近 30 天</option>
+                    <option value="100" selected>最近 100 天</option>
+                    <option value="250">最近 250 天 (1 年)</option>
+                    <option value="500">最近 500 天</option>
+                    <option value="1250">最近 1250 天 (5 年)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- K 线图表 -->
+        <div class="card">
+            <div id="stockInfo" class="stock-info" style="display: none;">
+                <span class="stock-name" id="displayStockName">--</span>
+                <span class="stock-code" id="displayStockCode">--</span>
+                <span class="stock-price" id="displayPrice">--</span>
+                <span class="stock-change" id="displayChange">--</span>
+            </div>
+            <div class="chart-controls">
+                <span style="color: #666; font-size: 14px;">周期:</span>
+                <button class="btn btn-outline" onclick="setFrequency('daily')" id="btnDaily">日 K</button>
+                <button class="btn btn-outline" onclick="setFrequency('weekly')" id="btnWeekly">周 K</button>
+                <button class="btn btn-outline active" onclick="setFrequency('5min')" id="btn5min">5 分钟</button>
+                <button class="btn btn-outline" onclick="setFrequency('15min')" id="btn15min">15 分钟</button>
+                <button class="btn btn-outline" onclick="setFrequency('30min')" id="btn30min">30 分钟</button>
+                <button class="btn btn-outline" onclick="setFrequency('60min')" id="btn60min">60 分钟</button>
+                <span style="width: 20px;"></span>
+                <button class="btn btn-outline" onclick="setChartType('candlestick')" id="btnCandlestick">🕯️ K 线图</button>
+                <button class="btn btn-outline" onclick="setChartType('line')" id="btnLine">📈 线图</button>
+                <button class="btn btn-outline active" onclick="toggleMinimalMode()" id="btnMinimal">🧹 极简显示</button>
+                <button class="btn btn-outline active" onclick="toggleMA(5)" id="btnMA5">MA5</button>
+                <button class="btn btn-outline active" onclick="toggleMA(10)" id="btnMA10">MA10</button>
+                <button class="btn btn-outline" onclick="toggleMA(20)" id="btnMA20">MA20</button>
+                <button class="btn btn-outline" onclick="exportData()">📥 导出数据</button>
+            </div>
+            <div id="chart-container"></div>
+            <div class="stats-row" id="chartStats" style="display: none;">
+                <div class="stat-box">
+                    <div class="stat-label">开盘</div>
+                    <div class="stat-value" id="statOpen">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">最高</div>
+                    <div class="stat-value" id="statHigh">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">最低</div>
+                    <div class="stat-value" id="statLow">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">收盘</div>
+                    <div class="stat-value" id="statClose">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">成交量</div>
+                    <div class="stat-value" id="statVolume">--</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">成交额</div>
+                    <div class="stat-value" id="statAmount">--</div>
+                </div>
+            </div>
+            <div class="indicator-row">
+                <div class="indicator-box">
+                    <div class="indicator-title">MACD</div>
+                    <div id="macd-container" class="indicator-chart"></div>
+                </div>
+                <div class="indicator-box">
+                    <div class="indicator-title">KDJ</div>
+                    <div id="kdj-container" class="indicator-chart"></div>
+                </div>
+            </div>
+            <div class="algo-panel">
+                <div class="algo-title">算法分析 (参考 Stock_py 信号引擎)</div>
+                <div id="algoSummary" class="algo-grid"></div>
+                <div id="algoSignals" class="signal-tags"></div>
+            </div>
+        </div>
+
+        <!-- 基本面数据 -->
+        <div class="card">
+            <h3 style="margin-bottom: 15px; color: #1a1a2e;">💰 基本面数据</h3>
+            <div id="basicInfo" style="color: #999;">加载中...</div>
+        </div>
+
+        <!-- 财务指标 -->
+        <div class="card">
+            <h3 style="margin-bottom: 15px; color: #1a1a2e;">📊 财务指标</h3>
+            <div id="financialInfo" style="color: #999;">加载中...</div>
+        </div>
+    </div>
+
+    <script src="/static/app-common.js"></script>
+    <script>
+        const API_BASE = window.AStockApp.API_BASE;
+        window.AStockApp.renderNavbar('chart');
+        let chart = null;
+        let candleSeries = null;
+        let volumeSeries = null;
+        let lineSeries = null;
+        let maSeries = {};
+        let maEnabled = {5: true, 10: true, 20: false};
+        let macdChart = null;
+        let kdjChart = null;
+        let macdSeries = null;
+        let difSeries = null;
+        let deaSeries = null;
+        let kSeries = null;
+        let dSeries = null;
+        let jSeries = null;
+        let currentChartType = 'candlestick';
+        let currentCode = null;
+        let currentData = [];
+        let currentIndicatorData = [];
+        let currentAlgoData = [];
+        let currentAlgoSummary = null;
+        let currentMarkers = [];
+        let currentFrequency = '5min'; // 默认 5 分钟
+        let currentLoadSeq = 0;
+        const klineCache = new Map();
+        const KLINE_CACHE_TTL_MS = 20000;
+        let minimalMode = true;
+
+        function seriesDisplayOptions() {
+            return minimalMode
+                ? { priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }
+                : { priceLineVisible: true, lastValueVisible: true, crosshairMarkerVisible: true };
+        }
+
+        function isDateBasedFrequency(freq) {
+            return freq === 'daily' || freq === 'weekly';
+        }
+
+        function getCachedKline(key) {
+            const item = klineCache.get(key);
+            if (!item) return null;
+            if (Date.now() - item.ts > KLINE_CACHE_TTL_MS) {
+                klineCache.delete(key);
+                return null;
+            }
+            return item.data;
+        }
+
+        function setCachedKline(key, data) {
+            klineCache.set(key, { ts: Date.now(), data });
+            if (klineCache.size > 40) {
+                const firstKey = klineCache.keys().next().value;
+                if (firstKey) klineCache.delete(firstKey);
+            }
+        }
+
+        async function fetchJson(url, timeoutMs = 12000) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => {
+                try {
+                    controller.abort(new DOMException(`timeout_${timeoutMs}ms`, 'TimeoutError'));
+                } catch (_) {
+                    controller.abort();
+                }
+            }, timeoutMs);
+            try {
+                const res = await fetch(url, { signal: controller.signal });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.detail || `请求失败: ${res.status}`);
+                return data;
+            } catch (err) {
+                const name = String(err?.name || '');
+                const message = String(err?.message || '');
+                const aborted = (
+                    name === 'AbortError' ||
+                    name === 'TimeoutError' ||
+                    message.includes('aborted') ||
+                    message.includes('abort')
+                );
+                if (aborted) {
+                    throw new Error(`请求超时（>${Math.floor(timeoutMs / 1000)}秒），请稍后重试`);
+                }
+                if (err instanceof Error) throw err;
+                throw new Error(String(err || '请求失败'));
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        function toFiniteNumber(v, fallback = 0) {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : fallback;
+        }
+
+        async function resolveStockCode(inputValue) {
+            return window.AStockApp.resolveStockCode(inputValue);
+        }
+
+        async function loadSuggest(keyword) {
+            const q = String(keyword || '').trim();
+            const list = document.getElementById('stockSuggestList');
+            if (!list) return;
+            if (!q) {
+                list.innerHTML = '';
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/search_stocks?q=${encodeURIComponent(q)}&limit=15`);
+                const data = await res.json();
+                if (!res.ok || !Array.isArray(data.items)) return;
+                list.innerHTML = data.items.map(i => `<option value="${i.code} ${i.name}"></option>`).join('');
+            } catch (_) {}
+        }
+
+        function toChartTimeValue(dateStr, isDaily) {
+            const raw = String(dateStr || '').trim();
+            if (!raw) return null;
+            if (isDaily) {
+                return raw.split(' ')[0];
+            }
+            const isoText = raw.includes('T') ? raw : raw.replace(' ', 'T');
+            const ms = new Date(isoText).getTime();
+            if (!Number.isFinite(ms)) return null;
+            return Math.floor(ms / 1000);
+        }
+
+        function normalizeKlineRows(rows = []) {
+            const normalized = [];
+            for (const d of rows) {
+                const dateStr = d?.date || d?.day || d?.time || '';
+                if (!dateStr) continue;
+
+                const open = toFiniteNumber(d?.open, NaN);
+                const high = toFiniteNumber(d?.high, NaN);
+                const low = toFiniteNumber(d?.low, NaN);
+                const close = toFiniteNumber(d?.close, NaN);
+                if (![open, high, low, close].every(Number.isFinite)) continue;
+
+                let rawTime = String(dateStr);
+                if (!isDateBasedFrequency(currentFrequency) && !rawTime.includes(':')) {
+                    rawTime = `${rawTime} 00:00`;
+                }
+                const timeValue = toChartTimeValue(rawTime, isDateBasedFrequency(currentFrequency));
+                if (timeValue === null) continue;
+
+                normalized.push({
+                    ...d,
+                    date: String(dateStr),
+                    time: timeValue,
+                    open,
+                    high,
+                    low,
+                    close,
+                    volume: toFiniteNumber(d?.volume, 0),
+                    amount: toFiniteNumber(d?.amount, 0),
+                    change_pct: toFiniteNumber(d?.change_pct, 0),
+                    turnover_rate: toFiniteNumber(d?.turnover_rate, 0),
+                });
+            }
+            return normalized;
+        }
+
+        function buildSafeSeriesPayload(rows = []) {
+            const map = new Map();
+            for (const r of rows) {
+                if (!r || r.time === null || r.time === undefined || r.time === '') continue;
+                const key = String(r.time);
+                map.set(key, r);
+            }
+            const arr = Array.from(map.values());
+            arr.sort((a, b) => {
+                if (typeof a.time === 'number' && typeof b.time === 'number') return a.time - b.time;
+                return String(a.time).localeCompare(String(b.time));
+            });
+
+            const candleData = arr.map(d => ({
+                time: d.time,
+                open: toFiniteNumber(d.open, 0),
+                high: toFiniteNumber(d.high, 0),
+                low: toFiniteNumber(d.low, 0),
+                close: toFiniteNumber(d.close, 0),
+            }));
+            const volumeData = arr.map(d => ({
+                time: d.time,
+                value: Math.max(0, toFiniteNumber(d.volume, 0)),
+                color: toFiniteNumber(d.close, 0) >= toFiniteNumber(d.open, 0) ? '#26a69a40' : '#ef535040',
+            }));
+            const lineData = arr.map(d => ({
+                time: d.time,
+                value: toFiniteNumber(d.close, 0),
+            }));
+            return { rows: arr, candleData, volumeData, lineData };
+        }
+
+        // 设置 K 线频率
+        function setFrequency(freq) {
+            currentFrequency = freq;
+            // 仅更新周期按钮状态，避免误伤 K线/线图/MA 按钮
+            ['btnDaily', 'btnWeekly', 'btn5min', 'btn15min', 'btn30min', 'btn60min'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
+            const activeBtnMap = {
+                daily: 'btnDaily',
+                weekly: 'btnWeekly',
+                '5min': 'btn5min',
+                '15min': 'btn15min',
+                '30min': 'btn30min',
+                '60min': 'btn60min',
+            };
+            const activeBtn = document.getElementById(activeBtnMap[freq] || '');
+            if (activeBtn) activeBtn.classList.add('active');
+            syncMaButtonState();
+
+            // 重新加载图表
+            if (currentCode) {
+                loadChart();
+            }
+        }
+
+        function syncMaButtonState() {
+            [5, 10, 20].forEach(period => {
+                const el = document.getElementById(`btnMA${period}`);
+                if (el) el.classList.toggle('active', !!maEnabled[period]);
+            });
+        }
+
+        // 页面加载时获取股票列表
+        window.addEventListener('DOMContentLoaded', () => {
+            // 如果 URL 中有 code 参数，自动加载图表
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            if (code) {
+                document.getElementById('stockCodeInput').value = code;
+                loadChart();
+            }
+        });
+
+        // 初始化图表
+        function initChart() {
+            const container = document.getElementById('chart-container');
+            container.innerHTML = '';
+
+            chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: container.clientHeight,
+                layout: {
+                    background: { color: '#ffffff' },
+                    textColor: '#333',
+                },
+                grid: {
+                    vertLines: { color: '#f0f0f0' },
+                    horzLines: { color: '#f0f0f0' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                    horzLine: {
+                        labelVisible: !minimalMode,
+                    },
+                },
+                timeScale: {
+                    timeVisible: !isDateBasedFrequency(currentFrequency),
+                    borderColor: '#ddd',
+                },
+                rightPriceScale: {
+                    borderColor: '#ddd',
+                },
+            });
+
+            candleSeries = null;
+            volumeSeries = null;
+            lineSeries = null;
+            maSeries = {};
+            ensureCandlestickSeries();
+
+            // 自适应大小
+            window.addEventListener('resize', () => {
+                chart.applyOptions({ width: container.clientWidth });
+            });
+        }
+
+        function ensureCandlestickSeries() {
+            if (!chart) return;
+            if (!candleSeries) {
+                candleSeries = chart.addCandlestickSeries({
+                    upColor: '#e74c3c',
+                    downColor: '#27ae60',
+                    borderUpColor: '#e74c3c',
+                    borderDownColor: '#27ae60',
+                    wickUpColor: '#e74c3c',
+                    wickDownColor: '#27ae60',
+                    ...seriesDisplayOptions(),
+                });
+            }
+            if (!volumeSeries) {
+                volumeSeries = chart.addHistogramSeries({
+                    color: '#26a69a',
+                    priceFormat: { type: 'volume' },
+                    priceScaleId: '',
+                    scaleMargins: { top: 0.85, bottom: 0 },
+                });
+            }
+        }
+
+        function ensureLineSeries() {
+            if (!chart) return;
+            if (!lineSeries) {
+                lineSeries = chart.addLineSeries({
+                    color: '#2962ff',
+                    lineWidth: 2,
+                    ...seriesDisplayOptions(),
+                });
+            }
+        }
+
+        function initIndicatorCharts() {
+            const macdContainer = document.getElementById('macd-container');
+            const kdjContainer = document.getElementById('kdj-container');
+            macdContainer.innerHTML = '';
+            kdjContainer.innerHTML = '';
+
+            macdChart = LightweightCharts.createChart(macdContainer, {
+                width: macdContainer.clientWidth,
+                height: macdContainer.clientHeight,
+                layout: { background: { color: '#fbfbfd' }, textColor: '#666' },
+                grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } },
+                crosshair: { horzLine: { labelVisible: !minimalMode } },
+                timeScale: { visible: false },
+                rightPriceScale: { borderColor: '#ddd' },
+            });
+
+            macdSeries = macdChart.addHistogramSeries({
+                priceFormat: { type: 'price', precision: 3, minMove: 0.001 },
+                ...seriesDisplayOptions(),
+            });
+            difSeries = macdChart.addLineSeries({ color: '#ff6d00', lineWidth: 1, ...seriesDisplayOptions() });
+            deaSeries = macdChart.addLineSeries({ color: '#2962ff', lineWidth: 1, ...seriesDisplayOptions() });
+
+            kdjChart = LightweightCharts.createChart(kdjContainer, {
+                width: kdjContainer.clientWidth,
+                height: kdjContainer.clientHeight,
+                layout: { background: { color: '#fbfbfd' }, textColor: '#666' },
+                grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } },
+                crosshair: { horzLine: { labelVisible: !minimalMode } },
+                timeScale: { visible: true, timeVisible: !isDateBasedFrequency(currentFrequency) },
+                rightPriceScale: { borderColor: '#ddd' },
+            });
+
+            kSeries = kdjChart.addLineSeries({ color: '#8e44ad', lineWidth: 1, ...seriesDisplayOptions() });
+            dSeries = kdjChart.addLineSeries({ color: '#16a085', lineWidth: 1, ...seriesDisplayOptions() });
+            jSeries = kdjChart.addLineSeries({ color: '#e74c3c', lineWidth: 1, ...seriesDisplayOptions() });
+        }
+
+        function applyMinimalModeToSeries() {
+            const opt = seriesDisplayOptions();
+            [candleSeries, lineSeries, volumeSeries, macdSeries, difSeries, deaSeries, kSeries, dSeries, jSeries]
+                .filter(Boolean)
+                .forEach(s => {
+                    try { s.applyOptions(opt); } catch (_) {}
+                });
+            Object.values(maSeries || {}).forEach(s => {
+                try { s.applyOptions(opt); } catch (_) {}
+            });
+            if (chart) {
+                chart.applyOptions({ crosshair: { horzLine: { labelVisible: !minimalMode } } });
+            }
+            if (macdChart) {
+                macdChart.applyOptions({ crosshair: { horzLine: { labelVisible: !minimalMode } } });
+            }
+            if (kdjChart) {
+                kdjChart.applyOptions({ crosshair: { horzLine: { labelVisible: !minimalMode } } });
+            }
+            const btn = document.getElementById('btnMinimal');
+            if (btn) {
+                btn.classList.toggle('active', minimalMode);
+                btn.textContent = minimalMode ? '🧹 极简显示' : '🔧 专业显示';
+            }
+        }
+
+        function toggleMinimalMode() {
+            minimalMode = !minimalMode;
+            applyMinimalModeToSeries();
+        }
+
+        function renderIndicators(data) {
+            if (!data || !data.length) return;
+            currentIndicatorData = data.filter(d => d && d.time);
+            if (!currentIndicatorData.length) return;
+            initIndicatorCharts();
+
+            const macdData = currentIndicatorData.map(d => ({
+                time: d.time,
+                value: toFiniteNumber(d.macd, 0),
+                color: toFiniteNumber(d.macd, 0) >= 0 ? '#ef535080' : '#26a69a80',
+            }));
+            const difData = currentIndicatorData.map(d => ({ time: d.time, value: toFiniteNumber(d.dif, 0) }));
+            const deaData = currentIndicatorData.map(d => ({ time: d.time, value: toFiniteNumber(d.dea, 0) }));
+
+            const kData = currentIndicatorData.map(d => ({ time: d.time, value: toFiniteNumber(d.k, 0) }));
+            const dData = currentIndicatorData.map(d => ({ time: d.time, value: toFiniteNumber(d.d, 0) }));
+            const jData = currentIndicatorData.map(d => ({ time: d.time, value: toFiniteNumber(d.j, 0) }));
+
+            macdSeries.setData(macdData);
+            difSeries.setData(difData);
+            deaSeries.setData(deaData);
+            kSeries.setData(kData);
+            dSeries.setData(dData);
+            jSeries.setData(jData);
+        }
+
+        function toSeriesTime(dateValue) {
+            if (!dateValue) return '';
+            if (typeof dateValue === 'number') return dateValue;
+            const parsed = toChartTimeValue(dateValue, isDateBasedFrequency(currentFrequency));
+            if (parsed !== null) return parsed;
+            if (isDateBasedFrequency(currentFrequency)) {
+                return String(dateValue).split(' ')[0];
+            }
+            return String(dateValue);
+        }
+
+        function applyAlgoMarkers() {
+            if (!candleSeries || currentChartType !== 'candlestick') return;
+            const markers = currentMarkers
+                .filter(m => m && m.time)
+                .map(m => ({ ...m, time: toSeriesTime(m.time) }));
+            try {
+                if (typeof candleSeries.setMarkers === 'function') {
+                    candleSeries.setMarkers(markers);
+                    return;
+                }
+                if (LightweightCharts && typeof LightweightCharts.createSeriesMarkers === 'function') {
+                    LightweightCharts.createSeriesMarkers(candleSeries, markers);
+                }
+            } catch (e) {
+                console.warn('marker render failed, ignore markers', e);
+                try {
+                    if (typeof candleSeries.setMarkers === 'function') candleSeries.setMarkers([]);
+                } catch (_) {}
+            }
+        }
+
+        function renderAlgoPanel(summary = {}, latestRow = {}) {
+            const summaryEl = document.getElementById('algoSummary');
+            const signalsEl = document.getElementById('algoSignals');
+            const trendLabel = summary.trend_state === 'bull' ? '多头' : '空头';
+            const drawdownPct = ((latestRow.drawdown_20 || 0) * 100).toFixed(2) + '%';
+
+            summaryEl.innerHTML = `
+                <div class="algo-item"><div class="algo-k">最新评分</div><div class="algo-v">${(summary.latest_score || 0).toFixed(1)}</div></div>
+                <div class="algo-item"><div class="algo-k">平均评分</div><div class="algo-v">${(summary.avg_score || 0).toFixed(1)}</div></div>
+                <div class="algo-item"><div class="algo-k">趋势状态</div><div class="algo-v">${trendLabel}</div></div>
+                <div class="algo-item"><div class="algo-k">连续信号</div><div class="algo-v">${summary.latest_signal_streak || 0}</div></div>
+                <div class="algo-item"><div class="algo-k">量能标准化</div><div class="algo-v">${(summary.latest_volume_std || 0).toFixed(2)}</div></div>
+                <div class="algo-item"><div class="algo-k">20期回撤</div><div class="algo-v">${drawdownPct}</div></div>
+                <div class="algo-item"><div class="algo-k">买点次数</div><div class="algo-v">${summary.buy_count || 0}</div></div>
+                <div class="algo-item"><div class="algo-k">卖点次数</div><div class="algo-v">${summary.sell_count || 0}</div></div>
+            `;
+
+            const tags = [
+                { label: '原始信号', on: (latestRow.signal_raw || 0) === 1 },
+                { label: '买点触发', on: (latestRow.buy_point || 0) === 1 },
+                { label: '卖点触发', on: (latestRow.sell_point || 0) === 1 },
+                { label: 'MACD 多头', on: (latestRow.dif || 0) >= (latestRow.dea || 0) },
+                { label: '站上 MA10', on: (latestRow.close || 0) >= (latestRow.ma10 || 0) },
+            ];
+            signalsEl.innerHTML = tags
+                .map(tag => `<span class="signal-tag ${tag.on ? 'on' : ''}">${tag.label}</span>`)
+                .join('');
+        }
+
+        function resetAlgoPanel() {
+            renderAlgoPanel(
+                { latest_score: 0, avg_score: 0, trend_state: 'bear', latest_signal_streak: 0, latest_volume_std: 0, buy_count: 0, sell_count: 0 },
+                { drawdown_20: 0, signal_raw: 0, buy_point: 0, sell_point: 0, dif: 0, dea: 0, close: 0, ma10: 0 }
+            );
+        }
+
+        async function loadIndicators(code, days, loadSeq = currentLoadSeq) {
+            try {
+                const res = await fetch(`${API_BASE}/kline/${code}/indicators?days=${days}&frequency=${currentFrequency}`);
+                const payload = await res.json();
+                if (loadSeq !== currentLoadSeq) return;
+                if (!res.ok || !payload.data) {
+                    return;
+                }
+                const mapped = payload.data.map(d => ({
+                    ...d,
+                    time: toChartTimeValue(d.date || '', isDateBasedFrequency(currentFrequency))
+                })).filter(d => d.time !== null);
+                renderIndicators(mapped);
+            } catch (err) {
+                console.error('加载指标失败', err);
+            }
+        }
+
+        async function loadAlgoSignals(code, days, loadSeq = currentLoadSeq) {
+            try {
+                const res = await fetch(`${API_BASE}/kline/${code}/algo_signals?days=${days}&frequency=${currentFrequency}`);
+                const payload = await res.json();
+                if (loadSeq !== currentLoadSeq) return;
+                if (!res.ok || !payload.data) {
+                    currentMarkers = [];
+                    resetAlgoPanel();
+                    applyAlgoMarkers();
+                    return;
+                }
+
+                currentAlgoData = payload.data || [];
+                currentAlgoSummary = payload.summary || {};
+                currentMarkers = payload.markers || [];
+
+                const latestRow = currentAlgoData.length ? currentAlgoData[currentAlgoData.length - 1] : {};
+                renderAlgoPanel(currentAlgoSummary, latestRow);
+                applyAlgoMarkers();
+            } catch (err) {
+                console.error('加载算法信号失败', err);
+                currentMarkers = [];
+                resetAlgoPanel();
+                applyAlgoMarkers();
+            }
+        }
+
+        function setChartType(type) {
+            currentChartType = type;
+
+            document.getElementById('btnCandlestick').classList.toggle('active', type === 'candlestick');
+            document.getElementById('btnLine').classList.toggle('active', type === 'line');
+
+            // 根据频率设置时间显示
+            const showTime = !isDateBasedFrequency(currentFrequency);
+            chart.timeScale().applyOptions({
+                timeVisible: showTime,
+                dateFormat: showTime ? 'yyyy-MM-dd HH:mm' : 'yyyy-MM-dd'
+            });
+
+            const safe = buildSafeSeriesPayload(currentData);
+            if (!safe.rows || !safe.rows.length) {
+                document.getElementById('chart-container').innerHTML = '<div style="text-align:center; padding:100px; color:#999;">当前周期暂无可渲染数据</div>';
+                return;
+            }
+
+            if (type === 'line') {
+                clearMaLines();
+                if (candleSeries) {
+                    try { chart.removeSeries(candleSeries); } catch (_) {}
+                    candleSeries = null;
+                }
+                if (volumeSeries) {
+                    try { chart.removeSeries(volumeSeries); } catch (_) {}
+                    volumeSeries = null;
+                }
+                ensureLineSeries();
+                try {
+                    lineSeries.setData(safe.lineData);
+                } catch (e) {
+                    throw new Error(`线图渲染失败: ${e.message || e}`);
+                }
+            } else {
+                if (lineSeries) {
+                    try { chart.removeSeries(lineSeries); } catch (_) {}
+                    lineSeries = null;
+                }
+                ensureCandlestickSeries();
+                try {
+                    candleSeries.setData(safe.candleData);
+                } catch (e) {
+                    throw new Error(`K线渲染失败: ${e.message || e}`);
+                }
+                try { volumeSeries.setData(safe.volumeData); } catch (_) {}
+                drawMaLines();
+                applyAlgoMarkers();
+            }
+        }
+
+        function clearMaLines() {
+            Object.keys(maSeries).forEach(k => {
+                if (maSeries[k]) {
+                    chart.removeSeries(maSeries[k]);
+                }
+            });
+            maSeries = {};
+        }
+
+        function calcMA(data, period) {
+            const result = [];
+            if (!Array.isArray(data) || !data.length) return result;
+            for (let i = 0; i < data.length; i++) {
+                if (i + 1 < period) continue;
+                let sum = 0;
+                let ok = true;
+                for (let j = i + 1 - period; j <= i; j++) {
+                    const c = toFiniteNumber(data[j]?.close, NaN);
+                    if (!Number.isFinite(c)) {
+                        ok = false;
+                        break;
+                    }
+                    sum += c;
+                }
+                if (!ok) continue;
+                const t = data[i]?.time;
+                if (t === null || t === undefined || t === '') continue;
+                result.push({ time: t, value: sum / period });
+            }
+            return result;
+        }
+
+        function drawMaLines() {
+            if (!chart || currentChartType !== 'candlestick') return;
+            clearMaLines();
+            const colors = {5: '#f39c12', 10: '#8e44ad', 20: '#2980b9'};
+            const safe = buildSafeSeriesPayload(currentData);
+            const src = safe.rows || [];
+            [5, 10, 20].forEach(period => {
+                if (!maEnabled[period]) return;
+                const s = chart.addLineSeries({ color: colors[period], lineWidth: 1, ...seriesDisplayOptions() });
+                try {
+                    s.setData(calcMA(src, period));
+                } catch (e) {
+                    console.warn(`MA${period} render failed`, e);
+                    try { s.setData([]); } catch (_) {}
+                }
+                maSeries[period] = s;
+            });
+        }
+
+        function toggleMA(period) {
+            maEnabled[period] = !maEnabled[period];
+            document.getElementById(`btnMA${period}`).classList.toggle('active', maEnabled[period]);
+            if (currentChartType !== 'candlestick') {
+                setChartType('candlestick');
+                return;
+            }
+            drawMaLines();
+        }
+
+        async function fetchKlinePayload(code, days) {
+            const cacheKey = `${code}|${currentFrequency}|${days}`;
+            const cached = getCachedKline(cacheKey);
+            if (cached) return cached;
+
+            if (isDateBasedFrequency(currentFrequency)) {
+                const data = await fetchJson(`${API_BASE}/kline/${code}/chart?days=${days}&frequency=${currentFrequency}`, 10000);
+                setCachedKline(cacheKey, data);
+                return data;
+            }
+
+            const period = currentFrequency.replace('min', '');
+            let firstErr = null;
+            // 先读缓存/DB（失败也继续尝试强制刷新）
+            try {
+                const data = await fetchJson(`${API_BASE}/kline/${code}/min?period=${period}`, 5000);
+                if (data.data && data.data.length > 0) {
+                    setCachedKline(cacheKey, data);
+                    return data;
+                }
+            } catch (err) {
+                firstErr = err;
+            }
+
+            // 强制刷新（首次报错或数据为空都执行）
+            try {
+                const refreshed = await fetchJson(`${API_BASE}/kline/${code}/min?period=${period}&refresh=true`, 9000);
+                if (refreshed.data && refreshed.data.length > 0) {
+                    setCachedKline(cacheKey, refreshed);
+                    return refreshed;
+                }
+            } catch (_) {}
+
+            if (firstErr) {
+                const fallbackMsg = String(firstErr?.message || '').trim();
+                throw new Error(fallbackMsg || `分钟K线暂不可用，请切换日K/周K或稍后重试`);
+            }
+            throw new Error(`分钟K线暂无数据，请切换日K/周K`);
+        }
+
+        async function loadChart() {
+            const loadSeq = ++currentLoadSeq;
+            const rawInput = document.getElementById('stockCodeInput').value.trim() ||
+                         new URLSearchParams(window.location.search).get('code') || '600000';
+            const q = rawInput.split(/\s+/)[0];
+            const days = parseInt(document.getElementById('dayRange').value);
+
+            if (!q) {
+                alert('请输入股票代码');
+                return;
+            }
+            let code = q;
+            try {
+                code = await resolveStockCode(q);
+            } catch (e) {
+                alert(`股票解析失败：${e.message}`);
+                return;
+            }
+            document.getElementById('stockCodeInput').value = code;
+
+            currentCode = code;
+            document.getElementById('stockInfo').style.display = 'none';
+            document.getElementById('chartStats').style.display = 'none';
+
+            // 显示加载状态
+            const container = document.getElementById('chart-container');
+            container.innerHTML = '<div style="display: flex; justify-content: center; align-items: center; height: 400px;"><span class="loading"></span><span style="margin-left: 10px;">加载 K 线数据中...</span></div>';
+
+            try {
+                // 根据频率获取数据（分钟K自动兜底refresh）
+                const data = await fetchKlinePayload(code, days);
+                if (loadSeq !== currentLoadSeq) return;
+
+                if (!data.data || data.data.length === 0) {
+                    document.getElementById('chart-container').innerHTML = '<div style="text-align: center; padding: 100px; color: #999;">暂无 K 线数据，请切换周期或检查股票代码是否正确</div>';
+                    return;
+                }
+
+                // 归一化并过滤异常点，避免 LightweightCharts 抛 Value is undefined
+                currentData = normalizeKlineRows(data.data);
+                if (loadSeq !== currentLoadSeq) return;
+                if (!currentData.length) {
+                    document.getElementById('chart-container').innerHTML = '<div style="text-align: center; padding: 100px; color: #999;">K 线数据字段不完整（已自动过滤），请切换周期或刷新后重试</div>';
+                    return;
+                }
+                currentData = buildSafeSeriesPayload(currentData).rows;
+
+                // 初始化图表
+                initChart();
+
+                // 更新股票信息
+                document.getElementById('displayStockName').textContent = data.name || code;
+                document.getElementById('displayStockCode').textContent = code;
+
+                const latest = currentData[currentData.length - 1];
+                const prev = currentData[currentData.length - 2] || latest;
+                const change = latest.close - prev.close;
+                const changePct = prev.close > 0 ? ((change / prev.close * 100).toFixed(2)) : 0;
+
+                document.getElementById('displayPrice').textContent = latest.close.toFixed(2);
+                const changeEl = document.getElementById('displayChange');
+                changeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)} (${changePct}%)`;
+                changeEl.className = `stock-change ${change >= 0 ? 'price-up bg-up' : 'price-down bg-down'}`;
+
+                document.getElementById('stockInfo').style.display = 'flex';
+
+                // 更新统计数据
+                document.getElementById('statOpen').textContent = latest.open.toFixed(2);
+                document.getElementById('statHigh').textContent = latest.high.toFixed(2);
+                document.getElementById('statLow').textContent = latest.low.toFixed(2);
+                document.getElementById('statClose').textContent = latest.close.toFixed(2);
+                document.getElementById('statVolume').textContent = (latest.volume / 10000).toFixed(0) + '万手';
+                document.getElementById('statAmount').textContent = (latest.amount / 100000000).toFixed(2) + '亿元';
+                document.getElementById('chartStats').style.display = 'grid';
+
+                // 设置图表数据
+                try {
+                    setChartType(currentChartType);
+                } catch (chartErr) {
+                    document.getElementById('chart-container').innerHTML = `<div style="text-align:center; padding:100px; color:#c0392b;">图表渲染失败：${chartErr.message || chartErr}</div>`;
+                    return;
+                }
+                syncMaButtonState();
+
+                // 加载基本面数据
+                loadBasicInfo(code, loadSeq);
+                loadFinancialInfo(code, loadSeq);
+                loadIndicators(code, days, loadSeq);
+                loadAlgoSignals(code, days, loadSeq);
+
+            } catch (err) {
+                if (loadSeq !== currentLoadSeq) return;
+                const msg = String(err?.message || '请求失败');
+                container.innerHTML = `
+                    <div style="text-align:center; padding:100px; color:#c0392b;">
+                        加载失败：${msg}
+                        <div style="margin-top:12px;">
+                            <button class="btn" onclick="loadChart()">重试</button>
+                        </div>
+                    </div>
+                `;
+                console.error(err);
+            }
+        }
+
+        async function loadBasicInfo(code, loadSeq = currentLoadSeq) {
+            try {
+                const res = await fetch(`${API_BASE}/basic/${code}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (loadSeq !== currentLoadSeq) return;
+                    document.getElementById('basicInfo').innerHTML = `
+                        <div class="stats-row">
+                            <div class="stat-box"><div class="stat-label">股票名称</div><div class="stat-value">${data.name || '--'}</div></div>
+                            <div class="stat-box"><div class="stat-label">上市日期</div><div class="stat-value">${data.list_date || '--'}</div></div>
+                            <div class="stat-box"><div class="stat-label">总股本</div><div class="stat-value">${data.total_shares ? data.total_shares + '亿股' : '--'}</div></div>
+                            <div class="stat-box"><div class="stat-label">流通股本</div><div class="stat-value">${data.float_shares ? data.float_shares + '亿股' : '--'}</div></div>
+                            <div class="stat-box"><div class="stat-label">所属行业</div><div class="stat-value">${data.industry || '--'}</div></div>
+                            <div class="stat-box"><div class="stat-label">地区</div><div class="stat-value">${data.area || '--'}</div></div>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('basicInfo').innerHTML = '<span style="color: #999;">暂无基本面数据</span>';
+                }
+            } catch (err) {
+                document.getElementById('basicInfo').innerHTML = '<span style="color: #999;">加载失败</span>';
+            }
+        }
+
+        async function loadFinancialInfo(code, loadSeq = currentLoadSeq) {
+            try {
+                const res = await fetch(`${API_BASE}/financial/${code}?limit=4`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (loadSeq !== currentLoadSeq) return;
+                    if (data.data && data.data.length > 0) {
+                        let html = '<table style="width: 100%; font-size: 13px;"><thead><tr><th>报告期</th><th>ROE</th><th>净利率</th><th>毛利率</th><th>净利润 (亿)</th><th>每股收益</th></tr></thead><tbody>';
+                        data.data.forEach(row => {
+                            html += `<tr>
+                                <td>${row.report_date}</td>
+                                <td>${(row.roe_avg * 100)?.toFixed(2) || '-'}%</td>
+                                <td>${(row.net_margin * 100)?.toFixed(2) || '-'}%</td>
+                                <td>${(row.gross_margin * 100)?.toFixed(2) || '-'}%</td>
+                                <td>${(row.net_profit / 1e8)?.toFixed(2) || '-'}</td>
+                                <td>${row.eps_basic?.toFixed(3) || '-'}</td>
+                            </tr>`;
+                        });
+                        html += '</tbody></table>';
+                        document.getElementById('financialInfo').innerHTML = html;
+                    } else {
+                        document.getElementById('financialInfo').innerHTML = '<span style="color: #999;">暂无财务数据</span>';
+                    }
+                } else {
+                    document.getElementById('financialInfo').innerHTML = '<span style="color: #999;">暂无财务数据</span>';
+                }
+            } catch (err) {
+                document.getElementById('financialInfo').innerHTML = '<span style="color: #999;">加载失败</span>';
+            }
+        }
+
+        function exportData() {
+            if (!currentCode || !currentData.length) {
+                alert('没有可导出的数据');
+                return;
+            }
+
+            const csv = [
+                ['日期', '开盘', '最高', '最低', '收盘', '成交量', '成交额', '涨跌幅', '换手率'],
+                ...currentData.map(d => [d.date, d.open, d.high, d.low, d.close, d.volume, d.amount, d.change_pct, d.turnover_rate])
+            ].map(row => row.join(',')).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentCode}_kline.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', () => {
+            // 从 URL 获取股票代码
+            const urlCode = new URLSearchParams(window.location.search).get('code');
+            if (urlCode) {
+                document.getElementById('stockCodeInput').value = urlCode;
+            }
+            initChart();
+            syncMaButtonState();
+            resetAlgoPanel();
+            loadChart();
+            const input = document.getElementById('stockCodeInput');
+            if (input) {
+                input.addEventListener('input', (e) => loadSuggest(e.target.value));
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') loadChart();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

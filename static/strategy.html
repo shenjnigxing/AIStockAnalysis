@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>战法选股 - A 股数据系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 0; }
+
+        .navbar {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+        }
+        .navbar-brand { color: #fff; font-size: 20px; font-weight: bold; text-decoration: none; }
+        .navbar-menu { display: flex; gap: 10px; }
+        .navbar-menu a {
+            color: #ccc;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        .navbar-menu a:hover, .navbar-menu a.active { background: rgba(255,255,255,0.1); color: #fff; }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #1a1a2e;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-left: 4px solid #e74c3c;
+            padding-left: 12px;
+        }
+
+        .card h3 {
+            color: #1a1a2e;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        /* 战法选择器 */
+        .strategy-selector {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .strategy-selector label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .strategy-selector select {
+            padding: 12px 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            background: white;
+            cursor: pointer;
+            min-width: 250px;
+        }
+
+        .strategy-selector select:focus {
+            outline: none;
+            border-color: #e74c3c;
+        }
+
+        .strategy-selector button {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .strategy-selector button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+        }
+
+        /* 战法卡片 */
+        .strategy-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .strategy-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .strategy-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1a1a2e;
+        }
+
+        .strategy-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-high { background: #fee; color: #c00; }
+        .badge-medium { background: #ffa50020; color: #ffa500; }
+        .badge-low { background: #efe; color: #080; }
+
+        .strategy-desc {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .strategy-suitable {
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* 股票列表 */
+        .stock-list {
+            margin-top: 15px;
+        }
+
+        .stock-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .stock-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .stock-rank {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .stock-rank.gold {
+            background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
+        }
+
+        .stock-rank.silver {
+            background: linear-gradient(135deg, #bdc3c7 0%, #95a5a6 100%);
+        }
+
+        .stock-rank.bronze {
+            background: linear-gradient(135deg, #d35400 0%, #e67e22 100%);
+        }
+
+        .stock-info {
+            flex-grow: 1;
+        }
+
+        .stock-code-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-bottom: 5px;
+        }
+
+        .stock-price {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .stock-change {
+            font-size: 14px;
+            color: #e74c3c;
+            margin-left: 10px;
+        }
+
+        .stock-change.down {
+            color: #27ae60;
+        }
+
+        .stock-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+        }
+
+        .stock-meta span {
+            font-size: 12px;
+            color: #666;
+            background: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .stock-reason {
+            font-size: 13px;
+            color: #e74c3c;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        /* 加载动画 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #e74c3c;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 数量选择 */
+        .top-n-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .top-n-selector input {
+            width: 80px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .multi-picks {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .multi-pill {
+            border: 1px solid #ddd;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+            background: #fff;
+            color: #555;
+        }
+
+        .multi-pill.active {
+            border-color: #e74c3c;
+            background: #fff3f2;
+            color: #c0392b;
+            font-weight: 600;
+        }
+        .market-picks {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            max-width: 520px;
+        }
+
+        /* 对比视图 */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .compare-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .compare-card h4 {
+            color: #e74c3c;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .result-notice {
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .result-notice.warn {
+            background: #fff6e8;
+            border: 1px solid #ffd79a;
+            color: #9a5a00;
+        }
+        .result-notice.info {
+            background: #eef5ff;
+            border: 1px solid #cfe0ff;
+            color: #335b91;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">📈 A 股数据系统</a>
+            <div class="navbar-menu"></div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card" style="background:#f4f8ff; border:1px solid #d7e5ff; color:#315b8e;">
+            <div style="font-size:13px; line-height:1.7;">
+                职责分工：本页用于“战法模型选股”（单战法/多战法/回测对比）；<a href="/screener" style="color:#2f63c9; text-decoration:none;">选股器</a>用于“条件筛选”与模板化规则。
+            </div>
+        </div>
+
+        <!-- 战法选择 -->
+        <div class="card">
+            <h2>🎯 战法选股</h2>
+            <div class="strategy-selector">
+                <label for="strategySelect">选择战法：</label>
+                <select id="strategySelect" onchange="loadStrategyDesc()">
+                    <option value="">-- 请选择战法 --</option>
+                </select>
+
+                <div class="top-n-selector">
+                    <label for="topN">推荐数量：</label>
+                    <input type="number" id="topN" value="3" min="1" max="10">
+                </div>
+                <div class="top-n-selector">
+                    <label>应用市场：</label>
+                    <div id="marketPills" class="market-picks"></div>
+                </div>
+
+                <button onclick="runStrategy()">🚀 运行战法</button>
+                <button onclick="compareAll()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">📊 对比所有战法</button>
+                <button onclick="exportStrategyCsv()" style="background: #2d9f75; color: white; border: none; padding: 12px 16px; border-radius: 8px; cursor: pointer;">📥 导出结果</button>
+            </div>
+            <div id="multiStrategyPanel">
+                <div style="font-size: 13px; color: #666; margin-bottom: 8px;">多战法共识（可多选）：</div>
+                <div id="multiPills" class="multi-picks"></div>
+                <div style="margin-top: 12px;">
+                    <button onclick="runMultiStrategy()" style="background: linear-gradient(135deg, #00a676 0%, #0b7a57 100%); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer;">🧠 运行多战法共识</button>
+                </div>
+            </div>
+
+            <div id="strategyDesc" class="strategy-card" style="display: none;">
+                <div class="strategy-header">
+                    <span class="strategy-name" id="descName">--</span>
+                    <span class="strategy-badge badge-high" id="descRisk">--</span>
+                </div>
+                <div class="strategy-desc" id="descText">--</div>
+                <div class="strategy-suitable">适合人群：<span id="descSuitable">--</span></div>
+            </div>
+        </div>
+
+        <!-- 选股结果 -->
+        <div class="card" id="resultCard" style="display: none;">
+            <h2 id="resultTitle">📋 选股结果</h2>
+            <div id="resultContent"></div>
+        </div>
+
+        <!-- 对比结果 -->
+        <div class="card" id="compareCard" style="display: none;">
+            <h2>📊 战法对比</h2>
+            <div id="compareContent" class="compare-grid"></div>
+        </div>
+
+        <!-- 空状态 -->
+        <div class="card" id="emptyState">
+            <div class="empty-state">
+                <div class="empty-state-icon">📈</div>
+                <h3>选择战法开始选股</h3>
+                <p style="margin-top: 10px; color: #999;">左侧下拉框选择战法，点击"运行战法"查看推荐股票</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app-common.js"></script>
+    <script>
+        const API_BASE = window.AStockApp.API_BASE;
+        window.AStockApp.renderNavbar('strategy');
+        let strategies = [];
+        let multiSelected = [];
+        let currentStrategyRows = [];
+        let marketScopeSelected = ['all'];
+        const marketScopeItems = [
+            { id: 'all', label: '全市场' },
+            { id: 'sh_main', label: '沪市主板' },
+            { id: 'kcb', label: '科创板' },
+            { id: 'sz_main', label: '深市主板' },
+            { id: 'cyb', label: '创业板' },
+            { id: 'limit_up', label: '涨停' },
+            { id: 'limit_down', label: '跌停' },
+        ];
+
+        function renderMarketPills() {
+            const panel = document.getElementById('marketPills');
+            if (!panel) return;
+            panel.innerHTML = '';
+            marketScopeItems.forEach(item => {
+                const el = document.createElement('span');
+                el.className = `multi-pill ${marketScopeSelected.includes(item.id) ? 'active' : ''}`;
+                el.textContent = item.label;
+                el.onclick = () => toggleMarketScope(item.id);
+                panel.appendChild(el);
+            });
+        }
+
+        function toggleMarketScope(id) {
+            if (id === 'all') {
+                marketScopeSelected = ['all'];
+                renderMarketPills();
+                return;
+            }
+            marketScopeSelected = marketScopeSelected.filter(x => x !== 'all');
+            const idx = marketScopeSelected.indexOf(id);
+            if (idx >= 0) {
+                marketScopeSelected.splice(idx, 1);
+            } else {
+                marketScopeSelected.push(id);
+            }
+            if (!marketScopeSelected.length) marketScopeSelected = ['all'];
+            renderMarketPills();
+        }
+
+        function getSelectedMarketScope() {
+            const values = marketScopeSelected.length ? marketScopeSelected : ['all'];
+            return encodeURIComponent(values.join(','));
+        }
+
+        async function loadFallbackItems(limit = 10, marketScope = 'all') {
+            let data;
+            let res;
+            try {
+                res = await fetch(`${API_BASE}/strategy_recommend?top_n=${limit}&timeout_sec=3&market_scope=${encodeURIComponent(marketScope)}`);
+                data = await res.json();
+            } catch (_) {
+                data = null;
+            }
+            if (res && res.ok && data) {
+                return {
+                    recommendations: data.recommendations || [],
+                    strategies: ['quick'],
+                    backtest_summary: {}
+                };
+            }
+
+            res = await fetch(`/api/recommendation/top?limit=${limit}`);
+            data = await res.json();
+            if (!res.ok) throw new Error(data.detail || '快速推荐失败');
+            return {
+                recommendations: (data.items || []).map((x, i) => ({
+                    ...x,
+                    strategy_count: 1,
+                    summary_reason: '快速评分兜底推荐',
+                    composite_score: Number(x.composite_score || x.score || (70 - i * 1.2))
+                })),
+                strategies: ['quick'],
+                backtest_summary: {}
+            };
+        }
+
+        // 加载战法列表
+        async function loadStrategies() {
+            try {
+                const res = await fetch(`${API_BASE}/strategies`);
+                const data = await res.json();
+                strategies = data.strategies;
+
+                const select = document.getElementById('strategySelect');
+                strategies.forEach(s => {
+                    const option = document.createElement('option');
+                    option.value = s.id;
+                    option.textContent = s.name;
+                    select.appendChild(option);
+                });
+                renderMultiPills();
+            } catch (err) {
+                console.error('加载战法列表失败:', err);
+            }
+        }
+
+        function renderMultiPills() {
+            const panel = document.getElementById('multiPills');
+            multiSelected = [];
+            panel.innerHTML = '';
+            strategies.forEach((s, idx) => {
+                const el = document.createElement('span');
+                el.className = `multi-pill ${idx < 3 ? 'active' : ''}`;
+                el.dataset.id = s.id;
+                el.textContent = s.name;
+                if (idx < 3) multiSelected.push(s.id);
+                el.onclick = () => toggleMultiPick(s.id, el);
+                panel.appendChild(el);
+            });
+        }
+
+        function toggleMultiPick(id, el) {
+            const hit = multiSelected.indexOf(id);
+            if (hit >= 0) {
+                multiSelected.splice(hit, 1);
+                el.classList.remove('active');
+            } else {
+                multiSelected.push(id);
+                el.classList.add('active');
+            }
+        }
+
+        // 显示战法说明
+        function loadStrategyDesc() {
+            const strategyId = document.getElementById('strategySelect').value;
+            const descDiv = document.getElementById('strategyDesc');
+
+            if (!strategyId) {
+                descDiv.style.display = 'none';
+                return;
+            }
+
+            const strategy = strategies.find(s => s.id === strategyId);
+            if (strategy) {
+                document.getElementById('descName').textContent = strategy.name;
+                document.getElementById('descRisk').textContent = strategy.risk;
+                document.getElementById('descRisk').className = `strategy-badge ${getRiskClass(strategy.risk)}`;
+                document.getElementById('descText').textContent = strategy.desc;
+                document.getElementById('descSuitable').textContent = strategy.suitable;
+                descDiv.style.display = 'block';
+            }
+        }
+
+        function getRiskClass(risk) {
+            if (risk.includes('极高')) return 'badge-high';
+            if (risk.includes('高')) return 'badge-high';
+            if (risk.includes('中')) return 'badge-medium';
+            return 'badge-low';
+        }
+
+        // 运行战法
+        async function runStrategy() {
+            const strategyId = document.getElementById('strategySelect').value;
+            const topN = parseInt(document.getElementById('topN').value) || 3;
+
+            if (!strategyId) {
+                alert('请先选择战法');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const marketScope = getSelectedMarketScope();
+                const res = await fetch(`${API_BASE}/strategy/${strategyId}?top_n=${topN}&market_scope=${marketScope}`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.detail || '运行失败');
+                }
+                if (!data.recommendations || !data.recommendations.length) {
+                    const fb = await loadFallbackItems(topN, decodeURIComponent(marketScope));
+                    fb.strategy_name = data.strategy_name || '快速推荐';
+                    displayResults(fb);
+                    return;
+                }
+
+                displayResults(data);
+            } catch (err) {
+                document.getElementById('resultContent').innerHTML = `
+                    <div style="color: #e74c3c; text-align: center; padding: 40px;">
+                        运行失败：${err.message}
+                    </div>
+                `;
+            }
+        }
+
+        // 对比所有战法
+        async function compareAll() {
+            showCompareLoading();
+
+            try {
+                const marketScope = getSelectedMarketScope();
+                const res = await fetch(`${API_BASE}/strategycompare?top_n=3&market_scope=${marketScope}`);
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || '对比失败');
+                }
+
+                displayCompare(data);
+            } catch (err) {
+                document.getElementById('compareContent').innerHTML = `
+                    <div style="color: #e74c3c; text-align: center; padding: 40px;">
+                        对比失败：${err.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function runMultiStrategy() {
+            if (!multiSelected.length) {
+                alert('请至少选择一个战法');
+                return;
+            }
+            showLoading();
+            try {
+                const ids = encodeURIComponent(multiSelected.join(','));
+                const topN = parseInt(document.getElementById('topN').value) || 5;
+                const marketScope = getSelectedMarketScope();
+                const res = await fetch(`${API_BASE}/strategy_multi?strategy_ids=${ids}&top_n=${topN}&timeout_sec=8&market_scope=${marketScope}`);
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || '多战法运行失败');
+                }
+                if (!data.recommendations || !data.recommendations.length) {
+                    const fb = await loadFallbackItems(topN, decodeURIComponent(marketScope));
+                    displayMultiResults(fb);
+                    return;
+                }
+                displayMultiResults(data);
+            } catch (err) {
+                document.getElementById('resultContent').innerHTML = `<div style="color:#e74c3c; text-align:center; padding:40px;">运行失败：${err.message}</div>`;
+            }
+        }
+
+        function showLoading() {
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('compareCard').style.display = 'none';
+            document.getElementById('resultCard').style.display = 'block';
+            document.getElementById('resultContent').innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: 15px;">正在运行战法，请稍候...</p>
+                </div>
+            `;
+        }
+
+        function showCompareLoading() {
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultCard').style.display = 'none';
+            document.getElementById('compareCard').style.display = 'block';
+            document.getElementById('compareContent').innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p style="margin-top: 15px;">正在对比所有战法，请稍候...</p>
+                </div>
+            `;
+        }
+
+        function renderCoverageNote(data) {
+            if (!data?.fallback && !data?.fallback_reason && !data?.data_coverage) {
+                return '';
+            }
+            const coverage = data.data_coverage || {};
+            const pieces = [];
+            if (data.fallback_reason) pieces.push(data.fallback_reason);
+            if (coverage.latest_total) {
+                pieces.push(`当前覆盖：${coverage.kline_20d || 0}/${coverage.latest_total} 只有20日K线，${coverage.financial || 0}/${coverage.latest_total} 只有财务数据`);
+            }
+            const klass = data.fallback ? 'warn' : 'info';
+            return `<div class="result-notice ${klass}">提示：${pieces.join('；')}</div>`;
+        }
+
+        function displayResults(data) {
+            currentStrategyRows = data.recommendations || [];
+            document.getElementById('resultTitle').textContent = `📋 ${data.strategy_name} - 选股结果`;
+            document.getElementById('resultCard').style.display = 'block';
+            document.getElementById('compareCard').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+
+            if (!data.recommendations || data.recommendations.length === 0) {
+                document.getElementById('resultContent').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">😕</div>
+                        <p>未找到符合条件的股票</p>
+                        <p style="font-size: 13px; color: #999; margin-top: 10px;">
+                            该战法在当前市场条件下没有找到合适的标的
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            html += renderCoverageNote(data);
+            if (data.backtest_summary) {
+                html += `
+                    <div style="margin-bottom: 12px; padding: 10px; background:#f8f9fa; border-radius:8px; font-size:13px; color:#555;">
+                        近20日均收益：${data.backtest_summary.avg_ret_20d?.toFixed(2) ?? '-'}% |
+                        近60日均收益：${data.backtest_summary.avg_ret_60d?.toFixed(2) ?? '-'}% |
+                        近20日均回撤：${data.backtest_summary.avg_mdd_20d?.toFixed(2) ?? '-'}%
+                    </div>
+                `;
+            }
+            html += '<div class="stock-list">';
+            data.recommendations.forEach((stock, index) => {
+                const rankClass = index === 0 ? 'gold' : (index === 1 ? 'silver' : (index === 2 ? 'bronze' : ''));
+                const changeClass = stock.change_pct >= 0 ? '' : 'down';
+                const changeSign = stock.change_pct >= 0 ? '+' : '';
+
+                html += `
+                    <div class="stock-item" onclick="window.open('/chart?code=${stock.code}', '_blank')">
+                        <div class="stock-rank ${rankClass}">${index + 1}</div>
+                        <div class="stock-info">
+                            <div class="stock-code-name">${stock.code} - ${stock.name}</div>
+                            <div class="stock-meta">
+                                <span>💰 ${stock.price?.toFixed(2) || '-'}元</span>
+                                <span>📊 换手：${stock.turnover?.toFixed(2) || '-'}%</span>
+                                <span>📈 涨幅：<span class="${changeClass}">${changeSign}${stock.change_pct?.toFixed(2) || '-'}%</span></span>
+                                <span>🧪 20日：${stock.ret_20d?.toFixed(2) ?? '-'}%</span>
+                                <span>🧪 60日：${stock.ret_60d?.toFixed(2) ?? '-'}%</span>
+                            </div>
+                            <div class="stock-reason">💡 ${stock.reason}</div>
+                        </div>
+                        <div class="stock-price">
+                            评分：${stock.score?.toFixed(0) || '-'}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            document.getElementById('resultContent').innerHTML = html;
+        }
+
+        function displayMultiResults(data) {
+            currentStrategyRows = data.recommendations || [];
+            document.getElementById('resultTitle').textContent = `🧠 多战法共识结果（命中 ${data.strategies?.length || 0} 个战法）`;
+            document.getElementById('resultCard').style.display = 'block';
+            document.getElementById('compareCard').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+
+            if (!data.recommendations || !data.recommendations.length) {
+                document.getElementById('resultContent').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><p>暂无多战法共识标的</p></div>`;
+                return;
+            }
+
+            let html = '';
+            html += renderCoverageNote(data);
+            if (data.backtest_summary) {
+                html += `
+                    <div style="margin-bottom: 12px; padding: 10px; background:#f8f9fa; border-radius:8px; font-size:13px; color:#555;">
+                        近20日均收益：${data.backtest_summary.avg_ret_20d?.toFixed(2) ?? '-'}% |
+                        近60日均收益：${data.backtest_summary.avg_ret_60d?.toFixed(2) ?? '-'}% |
+                        近20日均回撤：${data.backtest_summary.avg_mdd_20d?.toFixed(2) ?? '-'}%
+                    </div>
+                `;
+            }
+            html += '<div class="stock-list">';
+            data.recommendations.forEach((stock, index) => {
+                const rankClass = index === 0 ? 'gold' : (index === 1 ? 'silver' : (index === 2 ? 'bronze' : ''));
+                const changeClass = stock.change_pct >= 0 ? '' : 'down';
+                const changeSign = stock.change_pct >= 0 ? '+' : '';
+
+                html += `
+                    <div class="stock-item" onclick="window.open('/chart?code=${stock.code}', '_blank')">
+                        <div class="stock-rank ${rankClass}">${index + 1}</div>
+                        <div class="stock-info">
+                            <div class="stock-code-name">${stock.code} - ${stock.name}</div>
+                            <div class="stock-meta">
+                                <span>🎯 共识：${stock.strategy_count || 1} 个</span>
+                                <span>📈 涨幅：<span class="${changeClass}">${changeSign}${stock.change_pct?.toFixed(2) || '-'}%</span></span>
+                                <span>📊 换手：${stock.turnover?.toFixed(2) || '-'}%</span>
+                                <span>🧪 20日：${stock.ret_20d?.toFixed(2) ?? '-'}%</span>
+                                <span>🧪 60日：${stock.ret_60d?.toFixed(2) ?? '-'}%</span>
+                            </div>
+                            <div class="stock-reason">💡 ${stock.summary_reason || '-'}</div>
+                        </div>
+                        <div class="stock-price">评分：${stock.composite_score?.toFixed(1) || '-'}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            document.getElementById('resultContent').innerHTML = html;
+        }
+
+        function exportStrategyCsv() {
+            if (!currentStrategyRows.length) {
+                alert('当前没有可导出的战法结果');
+                return;
+            }
+            const headers = ['code', 'name', 'price', 'change_pct', 'turnover', 'score', 'composite_score', 'ret_20d', 'ret_60d', 'mdd_20d', 'mdd_60d', 'reason', 'summary_reason'];
+            const lines = [headers.join(',')];
+            currentStrategyRows.forEach(item => {
+                const row = headers.map(h => `"${String(item[h] ?? '').replace(/"/g, '""')}"`).join(',');
+                lines.push(row);
+            });
+            const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `strategy_result_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function displayCompare(data) {
+            document.getElementById('compareCard').style.display = 'block';
+            document.getElementById('resultCard').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+
+            const strategies = data.strategies;
+            let html = '';
+
+            for (const [id, s] of Object.entries(strategies)) {
+                html += `
+                    <div class="compare-card">
+                        <h4>${s.name}</h4>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                            找到 ${s.count} 只股票${s.native_count !== undefined && s.native_count !== null ? `（原始命中 ${s.native_count}）` : ''}
+                        </div>
+                        ${s.fallback ? `<div class="result-notice warn" style="margin-bottom:10px;">提示：${s.fallback_reason || '当前结果来自快速兜底，不是原始战法命中。'}</div>` : ''}
+                        <div style="font-size: 12px; color: #888; margin-bottom: 10px; line-height: 1.5;">
+                            20日均收益：${s.backtest_summary?.avg_ret_20d?.toFixed(2) ?? '-'}% |
+                            60日均收益：${s.backtest_summary?.avg_ret_60d?.toFixed(2) ?? '-'}%
+                        </div>
+                `;
+
+                if (s.recommendations && s.recommendations.length > 0) {
+                    s.recommendations.forEach((stock, index) => {
+                        const changeClass = stock.change_pct >= 0 ? 'text-up' : 'text-down';
+                        const changeSign = stock.change_pct >= 0 ? '+' : '';
+                        html += `
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 13px;">
+                                <span>
+                                    <strong>${index + 1}. ${stock.code}</strong> ${stock.name}
+                                </span>
+                                <span class="${changeClass}" style="color: ${stock.change_pct >= 0 ? '#e74c3c' : '#27ae60'}">
+                                    ${changeSign}${stock.change_pct?.toFixed(2) || '-'}%
+                                </span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<div style="font-size: 13px; color: #999; padding: 10px 0;">暂无推荐</div>';
+                }
+
+                html += `
+                    <div style="margin-top: 10px;">
+                        <a href="/strategy?strategy=${id}" style="font-size: 13px; color: #667eea; text-decoration: none;">
+                            查看详情 →
+                        </a>
+                    </div>
+                </div>
+                `;
+            }
+
+            document.getElementById('compareContent').innerHTML = html;
+        }
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStrategies();
+            renderMarketPills();
+
+            // 检查 URL 参数
+            const params = new URLSearchParams(window.location.search);
+            const strategyParam = params.get('strategy');
+            if (strategyParam) {
+                document.getElementById('strategySelect').value = strategyParam;
+                loadStrategyDesc();
+                runStrategy();
+            }
+        });
+    </script>
+</body>
+</html>

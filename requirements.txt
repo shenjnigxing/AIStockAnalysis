@@ -1,0 +1,18 @@
+# A 股数据系统依赖
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Web 框架
+fastapi>=0.100.0
+uvicorn>=0.23.0
+
+# 数据源
+baostock>=0.8.8
+requests>=2.31.0
+
+# 数据库
+# sqlite3 为 Python 内置模块，无需额外安装
+
+# 图表和数据导出 (可选)
+openpyxl>=3.1.0  # Excel 导出

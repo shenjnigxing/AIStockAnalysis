@@ -1,0 +1,714 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行情中心 - A 股数据系统</title>
+    <style>
+        :root {
+            --bg: #f2f5f9;
+            --card: #ffffff;
+            --text: #142033;
+            --muted: #5c687a;
+            --line: #dde3ec;
+            --brand: #0e8f66;
+            --brand-strong: #0b6e4f;
+            --up: #d84b3d;
+            --down: #1f8c4d;
+            --shadow: 0 10px 28px rgba(11, 24, 49, 0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: radial-gradient(1300px 500px at 10% -20%, #dce9ff 0%, transparent 65%), var(--bg); padding: 0; color: var(--text); }
+
+        /* 导航栏 */
+        .navbar {
+            background: linear-gradient(135deg, #101a2d 0%, #1b2b4f 100%);
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+        }
+        .navbar-brand { color: #fff; font-size: 20px; font-weight: bold; text-decoration: none; }
+        .navbar-menu { display: flex; gap: 10px; }
+        .navbar-menu a {
+            color: #ccc;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        .navbar-menu a:hover, .navbar-menu a.active {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+        /* 主容器 */
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        /* 卡片 */
+        .card {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid #eef2f7;
+        }
+        .card h2 {
+            color: var(--text);
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-left: 4px solid var(--brand);
+            padding-left: 12px;
+        }
+
+        /* 按钮 */
+        .btn {
+            background: linear-gradient(135deg, var(--brand) 0%, #0a7b58 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { background: linear-gradient(135deg, #0d9a6f 0%, var(--brand-strong) 100%); transform: translateY(-2px); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--brand);
+            color: var(--brand);
+        }
+        .btn-outline:hover { background: var(--brand); color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+        /* 状态提示 */
+        .status { padding: 10px; border-radius: 6px; margin: 10px 0; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+
+        /* 表格 */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #edf1f6; }
+        th { background: #f7f9fc; font-weight: 700; color: #203149; position: sticky; top: 0; }
+        tbody tr:nth-child(even) { background: #fbfcff; }
+        tr:hover { background: #eef5ff; }
+        .text-up { color: var(--up); font-weight: 600; }
+        .text-down { color: var(--down); font-weight: 600; }
+        .text-flat { color: #666; }
+
+        /* 表单元素 */
+        .form-row { display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 13px; color: #666; font-weight: 500; }
+        input, select {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(14, 143, 102, 0.12); }
+        input[type="number"] { width: 120px; }
+        input[type="text"] { width: 150px; }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--brand);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 分页 */
+        .pagination { display: flex; gap: 5px; justify-content: center; margin-top: 20px; }
+        .pagination button {
+            padding: 8px 14px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .pagination button:hover:not(:disabled) { background: var(--brand); color: white; border-color: var(--brand); }
+        .pagination button:disabled { background: #f5f5f5; cursor: not-allowed; }
+        .pagination button.active { background: var(--brand); color: white; border-color: var(--brand); }
+
+        /* 标签 */
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-red { background: #fee; color: #c00; }
+        .badge-green { background: #efe; color: #080; }
+        .badge-blue { background: #eef; color: #008; }
+        .badge-purple { background: #f3e5f5; color: #7b1fa2; }
+
+        /* 板块分类 */
+        .market-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .market-tab {
+            padding: 8px 16px;
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.3s;
+            font-size: 14px;
+            color: #3a4a62;
+        }
+        .market-tab:hover { background: #f3f7fb; transform: translateY(-1px); }
+        .market-tab.active {
+            background: var(--brand);
+            color: white;
+        }
+        #tabUp.active { background: var(--up); border-color: var(--up); color: white; }
+        #tabDown.active { background: var(--down); border-color: var(--down); color: white; }
+
+
+        /* 市场概览统计 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .stat-item {
+            background: linear-gradient(135deg, #1f6feb 0%, #3857d5 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(31, 111, 235, 0.28);
+        }
+        .stat-item:nth-child(2) { background: linear-gradient(135deg, #d84b3d 0%, #ef6c4f 100%); box-shadow: 0 8px 20px rgba(216, 75, 61, 0.28); }
+        .stat-item:nth-child(3) { background: linear-gradient(135deg, #0e8f66 0%, #11a977 100%); box-shadow: 0 8px 20px rgba(14, 143, 102, 0.28); }
+        .stat-item:nth-child(4) { background: linear-gradient(135deg, #6a56cf 0%, #8459dd 100%); box-shadow: 0 8px 20px rgba(106, 86, 207, 0.28); }
+        .stat-value { font-size: 32px; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { font-size: 14px; opacity: 0.9; }
+
+        .quality-banner {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .quality-ok { background: #edf7ed; color: #1f6f2f; border: 1px solid #cfe9d2; }
+        .quality-warn { background: #fff4e5; color: #8a5a00; border: 1px solid #ffd9a8; }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">📈 A 股数据系统</a>
+            <div class="navbar-menu"></div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- 市场统计 -->
+        <div class="card">
+            <h2>市场概览</h2>
+            <div id="statsContent" class="stats-grid">
+                <span class="loading"></span> 加载中...
+            </div>
+            <div id="qualityBanner" class="quality-banner" style="display:none;"></div>
+            <div id="runtimeBanner" class="quality-banner" style="display:none; margin-top:8px;"></div>
+            <div style="margin-top:8px; font-size: 13px; color:#667085;">
+                维护动作已迁移到 <a href="/ops">系统维护</a> 页面，当前页仅展示状态与行情浏览。
+            </div>
+        </div>
+
+        <!-- 板块分类 -->
+        <div class="card">
+            <h2>板块行情</h2>
+            <div class="market-tabs">
+                <span class="market-tab active" id="tabAll" onclick="resetMarketFilters()">全部 A 股</span>
+                <span class="market-tab" data-prefix="60" onclick="toggleBoardFilter('60', this)">沪市主板</span>
+                <span class="market-tab" data-prefix="68" onclick="toggleBoardFilter('68', this)">科创板</span>
+                <span class="market-tab" data-prefix="00" onclick="toggleBoardFilter('00', this)">深市主板</span>
+                <span class="market-tab" data-prefix="30" onclick="toggleBoardFilter('30', this)">创业板</span>
+                <span class="market-tab" id="tabUp" onclick="setLimitFilter('up', this)">涨停板</span>
+                <span class="market-tab" id="tabDown" onclick="setLimitFilter('down', this)">跌停板</span>
+            </div>
+            <div class="form-row" style="margin-top:8px;">
+                <label style="font-size:13px; color:#4f5d72;">
+                    <input type="checkbox" id="excludeStToggle" onchange="toggleExcludeSt(this.checked)">
+                    剔除 ST/*ST
+                </label>
+                <span style="font-size:12px; color:#7a8698;">支持组合：例如 “科创板 + 涨停板”</span>
+            </div>
+        </div>
+
+        <!-- 股票列表 -->
+        <div class="card">
+            <h2>股票行情</h2>
+            <div class="form-row">
+                <input type="text" id="searchCode" placeholder="股票代码">
+                <input type="text" id="searchName" placeholder="股票名称">
+                <select id="sortBy">
+                    <option value="code">代码</option>
+                    <option value="price">价格</option>
+                    <option value="change_pct">涨跌幅</option>
+                    <option value="turnover">换手率</option>
+                    <option value="pe">市盈率</option>
+                    <option value="pb">市净率</option>
+                    <option value="amount">成交额</option>
+                </select>
+                <select id="sortOrder">
+                    <option value="desc">降序</option>
+                    <option value="asc">升序</option>
+                </select>
+                <button class="btn" onclick="loadStocks()">查询</button>
+                <a class="btn btn-outline" href="/ops">🛠️ 去系统维护</a>
+                <span id="stockCount" style="margin-left: auto; color: #666;"></span>
+            </div>
+            <div id="stocksContent">
+                <p style="color: #999; text-align: center; padding: 40px;">点击查询加载数据...</p>
+            </div>
+            <div id="pagination"></div>
+        </div>
+    </div>
+
+    <script src="/static/app-common.js"></script>
+    <script>
+        const API_BASE = window.AStockApp.API_BASE;
+        window.AStockApp.renderNavbar('quote');
+        let currentPage = 1;
+        let currentFilters = {};
+        let currentBoardFilters = [];
+        let currentLimitFilter = null; // up/down/null
+        let excludeST = false;
+
+        async function resolveStockCode(inputValue) {
+            return window.AStockApp.resolveStockCode(inputValue);
+        }
+
+        function openChartByCode(code) {
+            window.AStockApp.openChartByCode(code);
+        }
+
+        function fmtNum(value, digits = 2, suffix = '') {
+            const n = Number(value);
+            if (!Number.isFinite(n)) return '-';
+            return `${n.toFixed(digits)}${suffix}`;
+        }
+
+        function updateFilterSummary() {
+            const all = document.getElementById('tabAll');
+            if (!all) return;
+            const boardMap = {
+                '60': '沪市主板',
+                '68': '科创板',
+                '00': '深市主板',
+                '30': '创业板'
+            };
+            const boards = currentBoardFilters.map(p => boardMap[p] || p);
+            const limit = currentLimitFilter === 'up' ? '涨停板' : (currentLimitFilter === 'down' ? '跌停板' : null);
+            const stText = excludeST ? '剔除ST' : null;
+            const chunks = [...boards, limit, stText].filter(Boolean);
+            all.title = chunks.length ? `当前筛选：${chunks.join(' + ')}` : '当前筛选：全部 A 股';
+        }
+
+        async function loadQuality() {
+            const box = document.getElementById('qualityBanner');
+            try {
+                const res = await fetch(API_BASE + '/data_quality');
+                const data = await res.json();
+                box.style.display = 'block';
+                if (data.status === 'ok') {
+                    box.className = 'quality-banner quality-ok';
+                    box.textContent = `数据质量正常（${data.date}）：样本 ${data.metrics.total}，上涨占比 ${(data.metrics.up_ratio * 100).toFixed(1)}%。`;
+                } else {
+                    box.className = 'quality-banner quality-warn';
+                    const issue = (data.issues || []).join('；');
+                    box.textContent = `数据质量预警（${data.date || '-'}）：${issue || '请刷新后重试'}。`;
+                }
+            } catch (_) {
+                box.style.display = 'none';
+            }
+        }
+
+        async function loadRuntimeStatus() {
+            const box = document.getElementById('runtimeBanner');
+            try {
+                const res = await fetch(API_BASE + '/runtime_status');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'status error');
+                const tencentOk = data.sources?.tencent_quote?.ok;
+                const baoOk = data.sources?.baostock?.ok;
+                const src = `腾讯:${tencentOk === null || tencentOk === undefined ? '未知' : (tencentOk ? '可达' : '不可达')} | Baostock:${baoOk === null || baoOk === undefined ? '未知' : (baoOk ? '可达' : '不可达')}`;
+                const db = data.db?.persistent ? `文件库` : `内存库(重启丢失)`;
+                box.style.display = 'block';
+                box.className = `quality-banner ${tencentOk === true && baoOk === true ? 'quality-ok' : 'quality-warn'}`;
+                box.textContent = `运行状态：${db} | 最近刷新：${data.latest_refresh_at || '-'} | 数据日期：${data.latest_date || '-'} | 源状态：${src}`;
+            } catch (e) {
+                box.style.display = 'none';
+            }
+        }
+
+        async function checkSourcesNow() {
+            const btn = document.getElementById('checkSourceBtn');
+            const old = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '检测中...';
+            try {
+                const res = await fetch(API_BASE + '/runtime_status/refresh_sources', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || '检测失败');
+                await loadRuntimeStatus();
+            } catch (e) {
+                const box = document.getElementById('runtimeBanner');
+                box.style.display = 'block';
+                box.className = 'quality-banner quality-warn';
+                box.textContent = `数据源检测失败：${e.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = old;
+            }
+        }
+
+        // 刷新数据
+        async function refreshData() {
+            const btn = document.getElementById('refreshBtn');
+            const status = document.getElementById('stockCount');
+
+            btn.disabled = true;
+            const originalText = status.textContent;
+            status.textContent = '刷新中...';
+
+            try {
+                const res = await fetch(API_BASE + '/refresh', { method: 'POST' });
+                const data = await res.json();
+
+                if (res.ok) {
+                    status.textContent = `✓ 已刷新 ${data.count} 只股票`;
+                    loadStats();
+                    loadRuntimeStatus();
+                    loadStocks();
+                    setTimeout(() => status.textContent = originalText, 3000);
+                } else {
+                    throw new Error(data.detail || '刷新失败');
+                }
+            } catch (err) {
+                status.textContent = `✗ 刷新失败：${err.message}`;
+                btn.disabled = false;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // 加载市场统计
+        async function loadStats() {
+            const content = document.getElementById('statsContent');
+            content.innerHTML = '<span class="loading"></span> 加载中...';
+
+            try {
+                const res = await fetch(API_BASE + `/stats?exclude_st=${excludeST}`);
+                const data = await res.json();
+
+                if (res.ok) {
+                    content.innerHTML = `
+                        <div class="stat-item">
+                            <div class="stat-value">${data.total_stocks}</div>
+                            <div class="stat-label">沪深A股总数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" style="font-size: 24px;">
+                                <span class="text-up">↑${data.up_count}</span> /
+                                <span class="text-down">↓${data.down_count}</span> /
+                                <span class="text-flat">→${data.flat_count || 0}</span>
+                            </div>
+                            <div class="stat-label">涨 / 跌 / 平</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">
+                                <span class="text-up">${data.limit_up_count || 0}</span> /
+                                <span class="text-down">${data.limit_down_count || 0}</span>
+                            </div>
+                            <div class="stat-label">涨停 / 跌停</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${data.total_stocks > 0 ? (data.median_turnover + '%') : '--'}</div>
+                            <div class="stat-label">换手率中位数</div>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                content.innerHTML = `<div class="status error">加载失败：${err.message}</div>`;
+            }
+        }
+
+        // 板块筛选
+        function toggleBoardFilter(prefix, tabEl) {
+            const idx = currentBoardFilters.indexOf(prefix);
+            if (idx >= 0) {
+                currentBoardFilters.splice(idx, 1);
+                tabEl.classList.remove('active');
+            } else {
+                currentBoardFilters.push(prefix);
+                tabEl.classList.add('active');
+            }
+            document.getElementById('tabAll').classList.toggle('active', currentBoardFilters.length === 0 && !currentLimitFilter);
+            updateFilterSummary();
+            currentPage = 1;
+            loadStocks();
+        }
+
+        function setLimitFilter(limitType, tabEl) {
+            if (currentLimitFilter === limitType) {
+                currentLimitFilter = null;
+                tabEl.classList.remove('active');
+            } else {
+                currentLimitFilter = limitType;
+                const up = document.getElementById('tabUp');
+                const down = document.getElementById('tabDown');
+                if (up) up.classList.toggle('active', limitType === 'up');
+                if (down) down.classList.toggle('active', limitType === 'down');
+            }
+            document.getElementById('tabAll').classList.toggle('active', currentBoardFilters.length === 0 && !currentLimitFilter);
+            updateFilterSummary();
+            currentPage = 1;
+            loadStocks();
+        }
+
+        function toggleExcludeSt(checked) {
+            excludeST = !!checked;
+            updateFilterSummary();
+            currentPage = 1;
+            loadStats();
+            loadStocks();
+        }
+
+        function resetMarketFilters() {
+            currentBoardFilters = [];
+            currentLimitFilter = null;
+            document.querySelectorAll('.market-tab[data-prefix]').forEach(tab => tab.classList.remove('active'));
+            const up = document.getElementById('tabUp');
+            const down = document.getElementById('tabDown');
+            if (up) up.classList.remove('active');
+            if (down) down.classList.remove('active');
+            const all = document.getElementById('tabAll');
+            if (all) all.classList.add('active');
+            updateFilterSummary();
+            currentPage = 1;
+            loadStocks();
+        }
+
+        // 加载股票列表
+        async function loadStocks() {
+            const codeInput = document.getElementById('searchCode').value.trim();
+            const name = document.getElementById('searchName').value;
+            const sortBy = document.getElementById('sortBy').value;
+            const sortOrder = document.getElementById('sortOrder').value;
+
+            const content = document.getElementById('stocksContent');
+            const countSpan = document.getElementById('stockCount');
+
+            content.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading"></span> 加载中...</div>';
+
+            // 构建查询参数
+            const params = new URLSearchParams({
+                page: currentPage,
+                page_size: 50,
+                sort_by: sortBy,
+                sort_order: sortOrder
+            });
+
+            if (codeInput) {
+                if (/^\d{6}$/.test(codeInput)) {
+                    params.append('code', codeInput);
+                } else if (!name) {
+                    // 代码框支持中文/模糊；解析失败时自动走名称模糊
+                    try {
+                        const resolved = await resolveStockCode(codeInput);
+                        params.append('code', resolved);
+                        document.getElementById('searchCode').value = resolved;
+                    } catch (_) {
+                        params.append('name', codeInput);
+                    }
+                } else {
+                    params.append('code', codeInput);
+                }
+            }
+            if (name) params.append('name', name);
+            if (excludeST) params.append('exclude_st', 'true');
+
+            // 添加板块筛选
+            if (currentBoardFilters.length > 0) {
+                params.append('code_prefixes', currentBoardFilters.join(','));
+            }
+            if (currentLimitFilter === 'up') {
+                params.append('only_limit_up', 'true');
+            } else if (currentLimitFilter === 'down') {
+                params.append('only_limit_down', 'true');
+            }
+
+            try {
+                const res = await fetch(API_BASE + '/stocks?' + params.toString());
+                const data = await res.json();
+
+                if (res.ok && data.data.length > 0) {
+                    countSpan.textContent = `共 ${data.total} 条记录，第 ${data.page}/${data.pages} 页`;
+
+                    let html = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>代码</th>
+                                    <th>名称</th>
+                                    <th>价格</th>
+                                    <th>涨跌幅</th>
+                                    <th>成交额 (亿)</th>
+                                    <th>换手率</th>
+                                    <th>市盈率</th>
+                                    <th>市净率</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    data.data.forEach(s => {
+                        const code = String(s.code || '').trim();
+                        const name = String(s.name || '-');
+                        const changePct = Number(s.change_pct);
+                        const changeClass = changePct > 0 ? 'text-up' : (changePct < 0 ? 'text-down' : 'text-flat');
+                        const changeSign = changePct > 0 ? '+' : '';
+                        const amountBillion = Number.isFinite(Number(s.amount)) ? fmtNum(Number(s.amount) / 100000000, 2) : '-';
+
+                        // 确定股票板块
+                        let marketBadge = '';
+                        if (code.startsWith('688')) {
+                            marketBadge = '<span class="badge badge-purple">科创板</span>';
+                        } else if (code.startsWith('300') || code.startsWith('301')) {
+                            marketBadge = '<span class="badge badge-blue">创业板</span>';
+                        }
+
+                        html += `
+                            <tr style="cursor:pointer;" onclick="openChartByCode('${code}')">
+                                <td><strong><button type="button" onclick="event.stopPropagation(); openChartByCode('${code}')" style="color:#2962ff; text-decoration:none; border:none; background:none; cursor:pointer; font:inherit; font-weight:700;">${code}</button></strong>${marketBadge}</td>
+                                <td><button type="button" onclick="event.stopPropagation(); openChartByCode('${code}')" style="color:#2962ff; text-decoration:none; border:none; background:none; cursor:pointer; font:inherit;">${name}</button></td>
+                                <td>¥${fmtNum(s.price)}</td>
+                                <td class="${changeClass}">${changeSign}${fmtNum(changePct, 2, '%')}</td>
+                                <td>${amountBillion}</td>
+                                <td>${fmtNum(s.turnover, 2, '%')}</td>
+                                <td>${fmtNum(s.pe)}</td>
+                                <td>${fmtNum(s.pb)}</td>
+                                <td>
+                                    <button type="button" onclick="event.stopPropagation(); openChartByCode('${code}')" class="btn btn-sm">K 线图</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                    html += '</tbody></table>';
+                    content.innerHTML = html;
+
+                    // 分页
+                    renderPagination(data.page, data.pages);
+                } else {
+                    content.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #7a8698;">
+                            当前条件下暂无数据
+                            <div style="margin-top: 10px;">
+                                <button class="btn btn-outline btn-sm" onclick="resetQuoteFilters()">重置筛选</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                content.innerHTML = `
+                    <div class="status error">
+                        加载失败：${err.message}
+                        <button class="btn btn-sm" style="margin-left:8px;" onclick="loadStocks()">重试</button>
+                    </div>
+                `;
+            }
+        }
+
+        function resetQuoteFilters() {
+            document.getElementById('searchCode').value = '';
+            document.getElementById('searchName').value = '';
+            document.getElementById('sortBy').value = 'code';
+            document.getElementById('sortOrder').value = 'desc';
+            resetMarketFilters();
+        }
+
+        // 渲染分页
+        function renderPagination(current, total) {
+            const container = document.getElementById('pagination');
+            if (total <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="pagination">';
+
+            // 上一页
+            html += `<button onclick="changePage(${current - 1})" ${current === 1 ? 'disabled' : ''}>上一页</button>`;
+
+            // 页码
+            const start = Math.max(1, current - 2);
+            const end = Math.min(total, current + 2);
+
+            for (let i = start; i <= end; i++) {
+                html += `<button onclick="changePage(${i})" ${i === current ? 'class="active"' : ''}>${i}</button>`;
+            }
+
+            // 下一页
+            html += `<button onclick="changePage(${current + 1})" ${current === total ? 'disabled' : ''}>下一页</button>`;
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            loadStocks();
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            updateFilterSummary();
+            loadStats();
+            loadQuality();
+            loadRuntimeStatus();
+            loadStocks();
+
+            ['searchCode', 'searchName'].forEach(id => {
+                document.getElementById(id).addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        currentPage = 1;
+                        loadStocks();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

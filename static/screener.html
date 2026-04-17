@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>选股器 - A 股数据系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 0; }
+
+        .navbar {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .navbar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+        }
+        .navbar-brand { color: #fff; font-size: 20px; font-weight: bold; text-decoration: none; }
+        .navbar-menu { display: flex; gap: 10px; }
+        .navbar-menu a {
+            color: #ccc;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        .navbar-menu a:hover, .navbar-menu a.active { background: rgba(255,255,255,0.1); color: #fff; }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #1a1a2e;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-left: 4px solid #4CAF50;
+            padding-left: 12px;
+        }
+
+        .card h3 {
+            color: #1a1a2e;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        /* 表单网格 */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .form-group label .hint {
+            font-size: 11px;
+            color: #999;
+            font-weight: normal;
+        }
+
+        input[type="number"], input[type="text"], select {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input[type="number"]:focus, input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        input[type="number"], input[type="text"] {
+            width: 140px;
+        }
+
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover { background: #45a049; transform: translateY(-2px); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #4CAF50;
+            color: #4CAF50;
+        }
+
+        .btn-outline:hover { background: #4CAF50; color: white; }
+
+        .btn-danger {
+            background: #e74c3c;
+        }
+
+        .btn-danger:hover { background: #c0392b; }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        /* 表格 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover { background: #f8f9fa; }
+
+        .text-up { color: #e74c3c; }
+        .text-down { color: #27ae60; }
+
+        /* 策略卡片 */
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .strategy-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .strategy-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .strategy-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+
+        .strategy-desc {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .strategy-params {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 14px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .pagination button:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+        .pagination button.active {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        /* 结果统计 */
+        .result-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        /* 复选框 */
+        .checkbox-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 预设策略 */
+        .preset-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 5px;
+        }
+        .split-note {
+            background: #f2f8ff;
+            border: 1px solid #d6e8ff;
+            color: #335c88;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        .quick-strategy-list {
+            margin-top: 10px;
+            border-top: 1px dashed #d9d9d9;
+            padding-top: 10px;
+            font-size: 13px;
+            color: #4b5a72;
+        }
+        .quick-strategy-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">📈 A 股数据系统</a>
+            <div class="navbar-menu"></div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- 战法入口 -->
+        <div class="card">
+            <h2>🎯 战法选股入口</h2>
+            <div class="split-note">页面职责已拆分：本页用于条件筛选；战法模型请在“战法选股”页运行。这里提供共识快览与一键跳转。</div>
+            <div class="form-row">
+                <a href="/strategy" class="btn">进入战法选股页</a>
+                <button class="btn btn-outline" onclick="loadQuickStrategyPreview()">🧠 刷新战法共识预览</button>
+                <span id="quickStrategyStatus" style="font-size: 12px; color: #666;"></span>
+            </div>
+            <div id="quickStrategyPreview" class="quick-strategy-list">
+                <div style="color:#999;">点击“刷新战法共识预览”加载战法候选（前 5 只）</div>
+            </div>
+        </div>
+
+        <!-- 条件模板 -->
+        <div class="card">
+            <h2>💡 条件模板（非战法）</h2>
+            <div class="strategy-grid">
+                <div class="strategy-card" onclick="applyPreset('low_pe')">
+                    <div class="strategy-name">📊 低估值模板</div>
+                    <div class="strategy-desc">条件筛选模板：市盈率较低的蓝筹股，偏价值风格</div>
+                    <div class="strategy-params">PE: 0-20 | PB: 0-5 | 换手率：1%-10%</div>
+                </div>
+                <div class="strategy-card" onclick="applyPreset('high_turnover')">
+                    <div class="strategy-name">🔥 高换手模板</div>
+                    <div class="strategy-desc">条件筛选模板：换手率活跃，偏短线跟随</div>
+                    <div class="strategy-params">换手率：>10% | 涨跌幅：>-3%</div>
+                </div>
+                <div class="strategy-card" onclick="applyPreset('breakthrough')">
+                    <div class="strategy-name">🚀 突破模板</div>
+                    <div class="strategy-desc">条件筛选模板：涨幅较大且放量突破</div>
+                    <div class="strategy-params">涨跌幅：>5% | 换手率：>5%</div>
+                </div>
+                <div class="strategy-card" onclick="applyPreset('small_cap')">
+                    <div class="strategy-name">💎 小盘成长模板</div>
+                    <div class="strategy-desc">条件筛选模板：小市值成长风格</div>
+                    <div class="strategy-params">股价：<20 元 | PE: 10-50</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选股条件 -->
+        <div class="card">
+            <h2>🔧 自定义选股条件</h2>
+
+            <div class="form-grid">
+                <!-- 估值条件 -->
+                <div class="form-group">
+                    <label>市盈率 (PE) <span class="hint">越低越低估</span></label>
+                    <div class="form-row">
+                        <input type="number" id="peMin" placeholder="最小" step="0.1">
+                        <span>-</span>
+                        <input type="number" id="peMax" placeholder="最大" step="0.1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>市净率 (PB) <span class="hint">越低越安全</span></label>
+                    <div class="form-row">
+                        <input type="number" id="pbMin" placeholder="最小" step="0.1">
+                        <span>-</span>
+                        <input type="number" id="pbMax" placeholder="最大" step="0.1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>换手率 (%) <span class="hint">活跃度</span></label>
+                    <div class="form-row">
+                        <input type="number" id="turnoverMin" placeholder="最小" step="0.1">
+                        <span>-</span>
+                        <input type="number" id="turnoverMax" placeholder="最大" step="0.1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>涨跌幅 (%) <span class="hint">当日表现</span></label>
+                    <div class="form-row">
+                        <input type="number" id="changeMin" placeholder="最小" step="0.1">
+                        <span>-</span>
+                        <input type="number" id="changeMax" placeholder="最大" step="0.1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>价格范围 (元)</label>
+                    <div class="form-row">
+                        <input type="number" id="priceMin" placeholder="最小" step="0.01">
+                        <span>-</span>
+                        <input type="number" id="priceMax" placeholder="最大" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>基本面条件</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" id="excludeSt" checked> 排除 ST 股</label>
+                        <label><input type="checkbox" id="positiveChange"> 今日上涨</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <button class="btn" onclick="screenStocks()">🔍 开始选股</button>
+                <button class="btn btn-outline" onclick="resetFilters()">🔄 重置条件</button>
+                <button class="btn btn-outline" onclick="saveStrategy()">💾 保存模板</button>
+                <select id="sortBy" style="margin-left: auto;">
+                    <option value="change_pct">按涨跌幅</option>
+                    <option value="turnover">按换手率</option>
+                    <option value="price">按价格</option>
+                    <option value="pe">按市盈率</option>
+                    <option value="float_mv">按流通市值</option>
+                </select>
+                <select id="sortOrder">
+                    <option value="desc">降序</option>
+                    <option value="asc">升序</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 选股结果 -->
+        <div class="card">
+            <h2>📋 选股结果</h2>
+            <div id="resultBar" class="result-bar" style="display: none;">
+                <span id="resultCount">找到 0 只股票</span>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-sm btn-outline" onclick="exportResults()">📥 导出 CSV</button>
+                </div>
+            </div>
+            <div id="stocksContent">
+                <p style="color: #999; text-align: center; padding: 40px;">请设置选股条件后点击"开始选股"</p>
+            </div>
+            <div id="pagination"></div>
+        </div>
+
+        <!-- 已保存模板 -->
+        <div class="card">
+            <h2>💾 已保存筛选模板</h2>
+            <div id="savedStrategies">
+                <p style="color: #999;">暂无保存的模板，可以点击“保存模板”保存当前筛选条件（仅保存在当前浏览器）。</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app-common.js"></script>
+    <script>
+        const API_BASE = window.AStockApp.API_BASE;
+        window.AStockApp.renderNavbar('screener');
+        let currentResults = [];
+        let currentPage = 1;
+        const pageSize = 50;
+
+        async function loadQuickStrategyPreview() {
+            const box = document.getElementById('quickStrategyPreview');
+            const status = document.getElementById('quickStrategyStatus');
+            box.innerHTML = '<span class="loading"></span> 加载中...';
+            status.textContent = '';
+            try {
+                const res = await fetch(`${API_BASE}/strategy_multi?strategy_ids=breakthrough,macd_golden,trend_acceleration,value_quality&top_n=5&timeout_sec=6`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || '加载失败');
+                const items = data.recommendations || [];
+                if (!items.length) {
+                    box.innerHTML = '<div style="color:#999;">暂无战法共识结果，建议去战法页查看更多策略。</div>';
+                    return;
+                }
+                box.innerHTML = items.map((s, i) => `
+                    <div class="quick-strategy-item">
+                        <span>${i + 1}. ${s.code} ${s.name}（${(s.change_pct ?? 0).toFixed(2)}%）</span>
+                        <a href="/chart?code=${s.code}" class="btn btn-sm btn-outline">看 K 线</a>
+                    </div>
+                `).join('');
+                if (data.fallback) {
+                    status.textContent = `提示：${data.fallback_reason || '已使用快速兜底'}`;
+                } else {
+                    status.textContent = `已加载 ${items.length} 只战法候选`;
+                }
+            } catch (e) {
+                box.innerHTML = `<div style="color:#e74c3c;">加载失败：${e.message}</div>`;
+            }
+        }
+
+        // 预设策略
+        const presets = {
+            low_pe: {
+                peMin: 0, peMax: 20,
+                pbMin: 0, pbMax: 5,
+                turnoverMin: 1, turnoverMax: 10,
+                excludeSt: true
+            },
+            high_turnover: {
+                turnoverMin: 10,
+                changeMin: -3,
+                excludeSt: true
+            },
+            breakthrough: {
+                changeMin: 5,
+                turnoverMin: 5,
+                excludeSt: true
+            },
+            small_cap: {
+                priceMin: 0, priceMax: 20,
+                peMin: 10, peMax: 50,
+                excludeSt: true
+            }
+        };
+
+        function applyPreset(name) {
+            const preset = presets[name];
+            if (!preset) return;
+
+            document.getElementById('peMin').value = preset.peMin || '';
+            document.getElementById('peMax').value = preset.peMax || '';
+            document.getElementById('pbMin').value = preset.pbMin || '';
+            document.getElementById('pbMax').value = preset.pbMax || '';
+            document.getElementById('turnoverMin').value = preset.turnoverMin || '';
+            document.getElementById('turnoverMax').value = preset.turnoverMax || '';
+            document.getElementById('changeMin').value = preset.changeMin || '';
+            document.getElementById('changeMax').value = preset.changeMax || '';
+            document.getElementById('priceMin').value = preset.priceMin || '';
+            document.getElementById('priceMax').value = preset.priceMax || '';
+            document.getElementById('excludeSt').checked = preset.excludeSt || false;
+            document.getElementById('positiveChange').checked = preset.positiveChange || false;
+
+            screenStocks();
+        }
+
+        function resetFilters() {
+            document.querySelectorAll('input[type="number"]').forEach(el => el.value = '');
+            document.getElementById('excludeSt').checked = true;
+            document.getElementById('positiveChange').checked = false;
+        }
+
+        async function screenStocks() {
+            const params = new URLSearchParams({
+                page: currentPage,
+                page_size: pageSize,
+                sort_by: document.getElementById('sortBy').value,
+                sort_order: document.getElementById('sortOrder').value
+            });
+
+            // 添加筛选条件
+            const peMin = document.getElementById('peMin').value;
+            const peMax = document.getElementById('peMax').value;
+            const pbMin = document.getElementById('pbMin').value;
+            const pbMax = document.getElementById('pbMax').value;
+            const turnoverMin = document.getElementById('turnoverMin').value;
+            const turnoverMax = document.getElementById('turnoverMax').value;
+            const changeMin = document.getElementById('changeMin').value;
+            const changeMax = document.getElementById('changeMax').value;
+            const priceMin = document.getElementById('priceMin').value;
+            const priceMax = document.getElementById('priceMax').value;
+
+            if (peMin) params.append('pe_min', peMin);
+            if (peMax) params.append('pe_max', peMax);
+            if (pbMin) params.append('pb_min', pbMin);
+            if (pbMax) params.append('pb_max', pbMax);
+            if (turnoverMin) params.append('turnover_min', turnoverMin);
+            if (turnoverMax) params.append('turnover_max', turnoverMax);
+            if (changeMin) params.append('change_pct_min', changeMin);
+            if (changeMax) params.append('change_pct_max', changeMax);
+            if (priceMin) params.append('price_min', priceMin);
+            if (priceMax) params.append('price_max', priceMax);
+            if (document.getElementById('excludeSt').checked) params.append('exclude_st', 'true');
+            if (document.getElementById('positiveChange').checked) params.append('change_pct_min', '0');
+
+            const content = document.getElementById('stocksContent');
+            content.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading"></span> 筛选中...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/screen?${params.toString()}`);
+                const data = await res.json();
+
+                if (res.ok && data.data && data.data.length > 0) {
+                    currentResults = data.data;
+                    document.getElementById('resultBar').style.display = 'flex';
+                    document.getElementById('resultCount').textContent = `找到 ${data.total} 只股票`;
+
+                    let html = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>代码</th>
+                                    <th>名称</th>
+                                    <th>价格</th>
+                                    <th>涨跌幅</th>
+                                    <th>市盈率</th>
+                                    <th>市净率</th>
+                                    <th>换手率</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    data.data.forEach(s => {
+                        const changeClass = s.change_pct > 0 ? 'text-up' : (s.change_pct < 0 ? 'text-down' : '');
+                        const changeSign = s.change_pct > 0 ? '+' : '';
+                        html += `
+                            <tr>
+                                <td><strong>${s.code}</strong></td>
+                                <td>${s.name}</td>
+                                <td>¥${s.price.toFixed(2)}</td>
+                                <td class="${changeClass}">${changeSign}${s.change_pct?.toFixed(2) || '0'}%</td>
+                                <td>${s.pe?.toFixed(2) || '-'}</td>
+                                <td>${s.pb?.toFixed(2) || '-'}</td>
+                                <td>${s.turnover?.toFixed(2) || '-'}%</td>
+                                <td><a href="/chart?code=${s.code}" class="btn btn-sm">K 线</a></td>
+                            </tr>
+                        `;
+                    });
+
+                    html += '</tbody></table>';
+                    content.innerHTML = html;
+
+                    // 分页
+                    const totalPages = data.pages || Math.ceil(data.total / pageSize);
+                    renderPagination(currentPage, totalPages);
+                } else {
+                    content.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">未找到符合条件的股票</p>';
+                    document.getElementById('resultBar').style.display = 'none';
+                }
+            } catch (err) {
+                content.innerHTML = `<div style="color: #e74c3c; text-align: center; padding: 40px;">加载失败：${err.message}</div>`;
+            }
+        }
+
+        function renderPagination(current, total) {
+            const container = document.getElementById('pagination');
+            if (total <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="pagination">';
+            html += `<button onclick="changePage(${current - 1})" ${current === 1 ? 'disabled' : ''}>上一页</button>`;
+
+            const start = Math.max(1, current - 2);
+            const end = Math.min(total, current + 2);
+
+            for (let i = start; i <= end; i++) {
+                html += `<button onclick="changePage(${i})" ${i === current ? 'class="active"' : ''}>${i}</button>`;
+            }
+
+            html += `<button onclick="changePage(${current + 1})" ${current === total ? 'disabled' : ''}>下一页</button>`;
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            screenStocks();
+        }
+
+        function exportResults() {
+            if (!currentResults.length) {
+                alert('没有可导出的数据');
+                return;
+            }
+
+            const csv = [
+                ['代码', '名称', '价格', '涨跌幅', '市盈率', '市净率', '换手率', '成交量', '成交额'],
+                ...currentResults.map(s => [
+                    s.code, s.name, s.price, s.change_pct, s.pe, s.pb, s.turnover, s.volume, s.amount
+                ])
+            ].map(row => row.join(',')).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `选股结果_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function saveStrategy() {
+            const name = prompt('请输入模板名称:');
+            if (!name) return;
+
+            const strategy = {
+                name: name,
+                peMin: document.getElementById('peMin').value,
+                peMax: document.getElementById('peMax').value,
+                pbMin: document.getElementById('pbMin').value,
+                pbMax: document.getElementById('pbMax').value,
+                turnoverMin: document.getElementById('turnoverMin').value,
+                turnoverMax: document.getElementById('turnoverMax').value,
+                changeMin: document.getElementById('changeMin').value,
+                changeMax: document.getElementById('changeMax').value,
+                priceMin: document.getElementById('priceMin').value,
+                priceMax: document.getElementById('priceMax').value,
+                excludeSt: document.getElementById('excludeSt').checked
+            };
+
+            let strategies = JSON.parse(localStorage.getItem('myStrategies') || '[]');
+            strategies.push(strategy);
+            localStorage.setItem('myStrategies', JSON.stringify(strategies));
+
+            loadSavedStrategies();
+            alert('模板已保存!');
+        }
+
+        function loadSavedStrategies() {
+            const strategies = JSON.parse(localStorage.getItem('myStrategies') || '[]');
+            const container = document.getElementById('savedStrategies');
+
+            if (!strategies.length) {
+                container.innerHTML = '<p style="color: #999;">暂无保存的筛选模板（仅保存在当前浏览器）</p>';
+                return;
+            }
+
+            let html = '<div class="strategy-grid">';
+            strategies.forEach((s, i) => {
+                html += `
+                    <div class="strategy-card">
+                        <div class="strategy-name">${s.name}</div>
+                        <div class="strategy-params">
+                            ${s.peMin ? `PE>${s.peMin}` : ''} ${s.peMax ? `PE<${s.peMax}` : ''}
+                            ${s.turnoverMin ? `换手>${s.turnoverMin}%` : ''} ${s.turnoverMax ? `换手<${s.turnoverMax}%` : ''}
+                            ${s.changeMin ? `涨幅>${s.changeMin}%` : ''}
+                        </div>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button class="btn btn-sm" onclick="loadStrategy(${i})">应用模板</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteStrategy(${i})">删除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function loadStrategy(index) {
+            const s = JSON.parse(localStorage.getItem('myStrategies') || '[]')[index];
+            if (!s) return;
+
+            document.getElementById('peMin').value = s.peMin || '';
+            document.getElementById('peMax').value = s.peMax || '';
+            document.getElementById('pbMin').value = s.pbMin || '';
+            document.getElementById('pbMax').value = s.pbMax || '';
+            document.getElementById('turnoverMin').value = s.turnoverMin || '';
+            document.getElementById('turnoverMax').value = s.turnoverMax || '';
+            document.getElementById('changeMin').value = s.changeMin || '';
+            document.getElementById('changeMax').value = s.changeMax || '';
+            document.getElementById('priceMin').value = s.priceMin || '';
+            document.getElementById('priceMax').value = s.priceMax || '';
+            document.getElementById('excludeSt').checked = s.excludeSt;
+
+            screenStocks();
+        }
+
+        function deleteStrategy(index) {
+            if (!confirm('确定删除该筛选模板？')) return;
+
+            let strategies = JSON.parse(localStorage.getItem('myStrategies') || '[]');
+            strategies.splice(index, 1);
+            localStorage.setItem('myStrategies', JSON.stringify(strategies));
+            loadSavedStrategies();
+        }
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedStrategies();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+﻿{
+  "name": "a-stock-system-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "python run_api.py",
+    "test:e2e": "playwright test tests/e2e/smoke.spec.ts",
+    "test:e2e:all": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.2"
+  }
+}

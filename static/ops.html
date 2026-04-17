@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统维护 - A 股数据系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fb; color: #1f2937; }
+        .navbar { background: linear-gradient(135deg, #101a2d 0%, #1b2b4f 100%); padding: 15px 20px; }
+        .navbar-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .navbar-brand { color: #fff; font-size: 20px; font-weight: bold; text-decoration: none; }
+        .navbar-menu { display: flex; gap: 10px; }
+        .navbar-menu a { color: #ccc; text-decoration: none; padding: 8px 12px; border-radius: 8px; transition: all 0.2s; }
+        .navbar-menu a:hover, .navbar-menu a.active { background: rgba(255,255,255,0.1); color: #fff; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        .card { background: #fff; border-radius: 16px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); padding: 24px; margin-bottom: 20px; }
+        .card h2 { margin-bottom: 12px; }
+        .muted { color: #667085; font-size: 14px; line-height: 1.6; }
+        .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+        .btn { border: none; border-radius: 10px; padding: 10px 16px; cursor: pointer; background: #2563eb; color: #fff; font-size: 14px; }
+        .btn:hover { opacity: 0.92; }
+        .btn-outline { background: #eef2ff; color: #1d4ed8; }
+        .status-box { margin-top: 16px; padding: 14px 16px; border-radius: 10px; background: #f8fafc; color: #475467; min-height: 52px; }
+        .status-ok { background: #ecfdf3; color: #027a48; }
+        .status-warn { background: #fff7ed; color: #b54708; }
+        code { background: #f4f4f5; padding: 2px 6px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">📈 A 股数据系统</a>
+            <div class="navbar-menu"></div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h2>🛠️ 系统维护</h2>
+            <p class="muted">本页用于执行高成本或偏运维性质的操作。普通行情浏览、策略分析和图表分析建议在对应业务页面完成。</p>
+            <div class="form-row">
+                <button class="btn btn-outline" id="checkSourceBtn" onclick="checkSourcesNow()">🔎 检测数据源状态</button>
+                <button class="btn" id="refreshBtn" onclick="refreshData()">🔄 刷新行情</button>
+                <button class="btn btn-outline" id="initHistoryBtn" onclick="initHistory()">📚 初始化历史数据</button>
+                <button class="btn btn-outline" id="backfillBtn" onclick="backfillBasicData()">🧱 补全基础数据</button>
+            </div>
+            <div id="opsStatus" class="status-box">请选择需要执行的维护操作。</div>
+        </div>
+
+        <div class="card">
+            <h2>📌 维护建议</h2>
+            <ul class="muted" style="padding-left: 20px; line-height: 1.8;">
+                <li>日常浏览优先使用 <code>/quote</code>、<code>/strategy</code>、<code>/chart</code>。</li>
+                <li>初始化历史数据可能持续 10-30 分钟，只建议在需要补历史样本时执行。</li>
+                <li>若 E2E/CI 环境启动服务，建议设置 <code>DISABLE_STARTUP_JOBS=1</code>。</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/static/app-common.js"></script>
+    <script>
+        const API_BASE = window.AStockApp.API_BASE;
+        window.AStockApp.renderNavbar('ops');
+
+        function setStatus(message, type = '') {
+            const box = document.getElementById('opsStatus');
+            box.textContent = message;
+            box.className = `status-box${type ? ` status-${type}` : ''}`;
+        }
+
+        async function checkSourcesNow() {
+            const btn = document.getElementById('checkSourceBtn');
+            const old = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '检测中...';
+            setStatus('正在检测数据源状态...');
+            try {
+                const res = await fetch(`${API_BASE}/runtime_source_health?refresh=true`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || '检测失败');
+                const lines = Object.entries(data.sources || {}).map(([name, info]) => `${name}: ${info.ok ? '正常' : '异常'}${info.detail ? `（${info.detail}）` : ''}`);
+                setStatus(lines.join(' | '), 'ok');
+            } catch (e) {
+                setStatus(`检测失败：${e.message}`, 'warn');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = old;
+            }
+        }
+
+        async function refreshData() {
+            const btn = document.getElementById('refreshBtn');
+            const old = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '刷新中...';
+            setStatus('正在刷新行情数据...');
+            try {
+                const res = await fetch(`${API_BASE}/refresh`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || '刷新失败');
+                setStatus(`刷新完成：${data.message || '市场行情已更新'}`, 'ok');
+            } catch (e) {
+                setStatus(`刷新失败：${e.message}`, 'warn');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = old;
+            }
+        }
+
+        async function initHistory() {
+            if (!confirm('初始化历史数据可能需要较长时间（10-30 分钟），确定继续？')) return;
+            const btn = document.getElementById('initHistoryBtn');
+            const old = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '初始化中...';
+            setStatus('正在初始化历史数据，请耐心等待...');
+            try {
+                const res = await fetch(`${API_BASE}/history/init?batch_size=50`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || '初始化失败');
+                setStatus(`历史数据任务已启动：${data.message || '请稍后查看日志/数据库结果。'}`, 'ok');
+            } catch (e) {
+                setStatus(`初始化失败：${e.message}`, 'warn');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = old;
+            }
+        }
+
+        async function backfillBasicData() {
+            const btn = document.getElementById('backfillBtn');
+            const old = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '补全中...';
+            setStatus('正在补全基础数据...');
+            try {
+                const res = await fetch(`${API_BASE}/basic/backfill?limit=300&financial_quarters=4`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || '补全失败');
+                setStatus(`补全完成：${data.message || '基础数据已更新。'}`, 'ok');
+            } catch (e) {
+                setStatus(`补全失败：${e.message}`, 'warn');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = old;
+            }
+        }
+    </script>
+</body>
+</html>
