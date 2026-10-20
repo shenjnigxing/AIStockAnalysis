@@ -25,10 +25,13 @@ def research_capabilities() -> dict[str, Any]:
         "data_connection": "manual_point_in_time_snapshots",
         "can_execute_orders": False,
         "validated_alpha": False,
+        "verified_point_in_time_data": False,
+        "iteration": "review_cycle_2",
         "limitations": [
             "Current v2 score is a hypothesis, not statistically validated alpha.",
             "A point-in-time financial data integration is required before live screening.",
             "Do not infer probabilities of profit from the research score.",
+            "Manually entered snapshots cannot establish provenance or reliability.",
         ],
     }
 
