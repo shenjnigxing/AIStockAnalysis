@@ -1,0 +1,51 @@
+name: Research V2 validation
+on:
+  push:
+    branches: [feat/aistock-research-v2]
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "apps/web/**"
+      - ".github/workflows/research-v2.yml"
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+      - run: python -m pip install -r apps/api/requirements.txt
+      - name: Configure monorepo service imports
+        shell: bash
+        run: |
+          modules=$(find "$GITHUB_WORKSPACE/services" -mindepth 1 -maxdepth 1 -type d | paste -sd ':' -)
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/apps/api:$modules" >> "$GITHUB_ENV"
+      - name: Run v2 adversarial unit tests
+        run: python -m pytest -q apps/api/tests/test_research_v2.py
+      - name: Check v2 router registration
+        run: python -c "from app.main import app; assert any(r.path == '/api/research/v2/evaluate' for r in app.routes)"
+  frontend:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: "http://127.0.0.1:8000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install
+        working-directory: apps/web
+        run: npm ci
+      - name: Typecheck
+        working-directory: apps/web
+        run: npx tsc --noEmit
+      - name: Build
+        working-directory: apps/web
+        run: npm run build
