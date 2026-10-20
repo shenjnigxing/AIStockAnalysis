@@ -26,7 +26,7 @@ def test_output_is_research_not_execution():
     day = date(2026, 10, 16)
     result = evaluate_one(snapshot(day), evaluation_date=day, market_regime="neutral")
     assert result["status"] == "research_candidate"
-    assert result["research_priority"] in ("priority", "watch")
+    assert result["research_priority"] in ("verify_first", "watch")
     assert 0 <= result["score"] <= 100
     assert "buy" not in str(result).lower() and "execute" not in str(result).lower()
 
@@ -86,3 +86,33 @@ def test_deterministic_batch_rank():
     first = evaluate_batch([b, a], evaluation_date=day, market_regime="neutral")
     second = evaluate_batch([a, b], evaluation_date=day, market_regime="neutral")
     assert first["items"] == second["items"]
+
+
+def test_old_disclosures_are_not_silently_treated_as_current():
+    day = date(2026, 10, 16)
+    result = evaluate_one(
+        snapshot(day, fundamentals_published_on="2025-12-01"),
+        evaluation_date=day, market_regime="neutral",
+    )
+    assert result["status"] == "stale_fundamentals"
+    assert result["score"] is None
+
+
+def test_high_scoring_manual_inputs_are_not_approved_trades():
+    day = date(2026, 10, 16)
+    result = evaluate_one(snapshot(day), evaluation_date=day, market_regime="neutral")
+    assert result["evidence_grade"] == "unverified_manual_input"
+    assert result["model_validation"] == "not_backtested"
+    if result["score"] is not None:
+        assert 0 <= sum(result["score_components"].values()) <= 100.01
+        assert result["research_priority"] != "buy"
+
+
+def test_sector_summary_is_sample_only_and_flags_sparse_groups():
+    day = date(2026, 10, 16)
+    result = evaluate_batch(
+        [snapshot(day), snapshot(day, symbol="DEMO002", sector="另一行业")],
+        evaluation_date=day, market_regime="neutral",
+    )
+    assert result["input_validation"] == "manual_unverified"
+    assert all(v["coverage"] == "insufficient" for v in result["sector_overview"])
