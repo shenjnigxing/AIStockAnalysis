@@ -9,7 +9,7 @@ from datetime import date
 from math import isfinite
 from typing import Any
 
-ENGINE_VERSION = "2.0.0-rc1"
+ENGINE_VERSION = "2.0.0-rc2"
 WEIGHTS = {"sector": 0.27, "quality": 0.23, "position": 0.22, "valuation": 0.13, "liquidity": 0.15}
 REQUIRED_NUMERIC = (
     "float_cap_yi", "sector_excess_20d_pct", "sector_excess_60d_pct",
@@ -32,6 +32,7 @@ def invalid_result(item: dict[str, Any], reasons: list[str], status: str) -> dic
         "engine_version": ENGINE_VERSION, "status": status, "score": None,
         "factors": {}, "reasons": [], "risk_flags": [],
         "blocked_reasons": reasons, "research_priority": "none",
+        "evidence_grade": "unverified_manual_input", "model_validation": "not_backtested",
     }
 
 
@@ -57,6 +58,8 @@ def evaluate_one(item: dict[str, Any], *, evaluation_date: date, market_regime: 
 
     if as_of > evaluation_date or disclosure > as_of:
         return invalid_result(item, ["数据或财报发布时间晚于研究时点，存在未来函数风险"], "insufficient_data")
+    if (as_of - disclosure).days > 210:
+        return invalid_result(item, ["财务报告最近披露日超过 210 天，无法确认当前财务质量"], "stale_fundamentals")
     if (evaluation_date - as_of).days > 14:
         return invalid_result(item, ["数据超过 14 个日历日，请刷新；长假需结合交易日历人工核实"], "stale_data")
 
@@ -83,7 +86,10 @@ def evaluate_one(item: dict[str, Any], *, evaluation_date: date, market_regime: 
 
     sector20 = item["sector_excess_20d_pct"]
     sector60 = item["sector_excess_60d_pct"]
-    sector = clamp(70 - abs(sector20 + 1.5) * 3 - abs(sector60) * 0.8)
+    # Experimental thesis: improving relative strength after a neglected period.
+    sector = clamp(62 - abs(sector20 + 1.5) * 3 - abs(sector60) * 0.8)
+    if sector60 < -2 and sector20 > sector60:
+        sector = clamp(sector + 8)
     if -6 <= sector20 <= 4:
         sector = clamp(sector + 13)
     # Prefer recovering/ignored sectors, not necessarily the weakest outright.
@@ -114,7 +120,9 @@ def evaluate_one(item: dict[str, Any], *, evaluation_date: date, market_regime: 
         risk_flags.append("恐慌市场：暂停新增研究优先级")
 
     score = round(clamp(sum(factors[k] * v for k, v in WEIGHTS.items()) - penalty), 2)
-    priority = "priority" if score >= 72 and market_regime not in ("weak", "panic") else "watch"
+    # Inputs arrive from a user-controlled endpoint, never a verified ETL chain.
+    # Ranking is only a shortlist for evidence verification, not a buy signal.
+    priority = "verify_first" if score >= 72 and market_regime not in ("weak", "panic") else "watch"
     reasons = [
         f"板块相对表现：20 日 {sector20:+.1f}%，60 日 {sector60:+.1f}%",
         f"盈利质量：ROE {item['roe_ttm_pct']:.1f}%，营收同比 {item['revenue_yoy_pct']:+.1f}%",
@@ -127,6 +135,9 @@ def evaluate_one(item: dict[str, Any], *, evaluation_date: date, market_regime: 
         "factors": {k: round(v, 2) for k, v in factors.items()},
         "reasons": reasons, "risk_flags": risk_flags, "blocked_reasons": [],
         "research_priority": priority,
+        "evidence_grade": "unverified_manual_input", "model_validation": "not_backtested",
+        "score_components": {k: round(factors[k] * weight, 2) for k, weight in WEIGHTS.items()},
+        "penalty_points": round(penalty, 2),
     }
 
 
@@ -137,6 +148,25 @@ def evaluate_batch(items: list[dict[str, Any]], *, evaluation_date: date, market
         raise ValueError("duplicate symbols are not allowed within a research batch")
     results = [evaluate_one(item, evaluation_date=evaluation_date, market_regime=market_regime) for item in items]
     results.sort(key=lambda x: (x["score"] is None, -(x["score"] or 0), x["symbol"]))
-    return {"engine_version": ENGINE_VERSION, "market_regime": market_regime,
-            "evaluated_as_of": evaluation_date.isoformat(), "count": len(results),
-            "items": results, "warning": "研究候选排序，不预测胜率，不构成买卖指令；须经样本外验证。"}
+    by_sector: dict[str, dict[str, Any]] = {}
+    for row in results:
+        if row["score"] is None:
+            continue
+        sector = row["sector"]
+        state = by_sector.setdefault(sector, {"sector": sector, "sum": 0.0, "count": 0})
+        state["sum"] += row["score"]
+        state["count"] += 1
+    sector_overview = sorted(
+        ({"sector": val["sector"], "count": val["count"],
+          "average_research_score": round(val["sum"] / val["count"], 2),
+          "coverage": "insufficient" if val["count"] < 3 else "sample_only"}
+         for val in by_sector.values()),
+        key=lambda x: (-x["average_research_score"], x["sector"]),
+    )
+    return {
+        "engine_version": ENGINE_VERSION, "market_regime": market_regime,
+        "evaluated_as_of": evaluation_date.isoformat(), "count": len(results),
+        "items": results, "sector_overview": sector_overview,
+        "input_validation": "manual_unverified", "model_validation": "not_backtested",
+        "warning": "仅按手工输入快照排序，不能证明时点真实、收益或胜率；行业比较只代表本批样本，不能代表全市场。"
+    }
