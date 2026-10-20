@@ -22,7 +22,9 @@ const manage: Item[] = [
 const system: Item[] = [
   { href: "/data-center", name: "数据与质量", icon: "▤" },
   { href: "/notifications", name: "通知", icon: "◌" },
-  { href: "/settings", name: "设置", icon: "⚙" }
+  { href: "/settings", name: "设置", icon: "⚙" },
+  { href: "/init", name: "初始化与诊断", icon: "⌑" },
+  { href: "/login", name: "账户入口", icon: "◉" }
 ];
 
 function NavSection({ label, items, path }: { label: string; items: Item[]; path: string }) {
