@@ -1,0 +1,32 @@
+/* AIStock v2 shell: investor workflow, not administrative portal. */
+.v2-app-shell{display:grid;grid-template-columns:246px minmax(0,1fr);min-height:100vh;background:#f6f8fb;color:#18263b;font-family:Inter,"PingFang SC","Microsoft Yahei",sans-serif}
+.v2-sidebar{background:#101d32;color:#c8d5e9;display:flex;flex-direction:column;min-height:100vh;position:sticky;top:0;height:100vh;border-right:1px solid #1a304d}
+.v2-brand{height:76px;display:flex;align-items:center;gap:11px;padding:0 19px;border-bottom:1px solid #223550;color:#fff;text-decoration:none}
+.v2-brand-mark{display:grid;place-items:center;background:#58e0c0;color:#102638;border-radius:12px;width:39px;height:39px;font-size:22px;font-weight:900}
+.v2-brand-name{display:grid;gap:3px;line-height:1.05}
+.v2-brand-name strong{font-size:20px;letter-spacing:-.6px}
+.v2-brand-name small{font-size:8px;letter-spacing:2px;color:#87a4c5}
+.v2-brand-version{font-size:11px;color:#9db7d2;margin-left:auto}
+.v2-navigation{overflow-y:auto;flex:1;padding:22px 10px}
+.v2-nav-section{margin-bottom:25px}
+.v2-nav-label{font-size:9px;font-weight:700;color:#728cac;letter-spacing:1.25px;padding:0 12px;margin:0 0 10px}
+.v2-nav-link{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;text-decoration:none;color:#b7c7dc;font-size:12px;font-weight:500;transition:background .15s,color .15s;margin:2px 0}
+.v2-nav-link:hover{background:#1a314e;color:#fff}
+.v2-nav-link.active{background:#223d56;color:#6af0cf;box-shadow:inset 3px 0 0 #61e6c8}
+.v2-nav-icon{width:18px;text-align:center;font-size:18px;line-height:1}
+.v2-sidebar-footer{padding:15px 22px 22px;border-top:1px solid #223550;font-size:11px;color:#8facbf}
+.v2-status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#61dfb6;margin-right:5px}
+.v2-stage{min-width:0;display:flex;flex-direction:column}
+.v2-header{height:64px;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.96);border-bottom:1px solid #e3e9f0;padding:0 35px;gap:12px}
+.v2-header-trail{font-size:12px;font-weight:650;color:#243d58}
+.v2-header-trail span{color:#b4c3d1;margin:0 10px}
+.v2-header-right{display:flex;align-items:center;gap:16px}
+.v2-header-pill{background:#e9f6f1;color:#196e56;padding:7px 11px;border-radius:20px;font-size:11px;font-weight:650}
+.v2-data-link{font-size:12px;color:#456581;text-decoration:none}
+.v2-data-link:hover{text-decoration:underline}
+.v2-stage-content{min-width:0;flex:1}
+.v2-stage-content .container{max-width:1400px;margin:22px auto 0}
+.v2-skip{position:absolute;z-index:1000;top:-100px;left:8px;background:#fff;padding:10px}
+.v2-skip:focus{top:8px}
+@media(max-width:960px){.v2-app-shell{grid-template-columns:minmax(0,1fr)}.v2-sidebar{height:auto;min-height:unset;position:static}.v2-brand{height:60px}.v2-navigation{display:flex;overflow-x:auto;padding:5px 8px;gap:8px}.v2-nav-section{display:flex;flex-shrink:0;align-items:center;margin:0;gap:1px}.v2-nav-label{display:none}.v2-nav-link{white-space:nowrap;padding:8px;font-size:11px}.v2-sidebar-footer{display:none}.v2-header{height:52px;padding:0 14px}.v2-header-pill{display:none}}
+@media(max-width:540px){.v2-header-right .v2-data-link{display:none}.v2-navigation{max-width:100vw}.v2-brand{padding:0 13px}}
