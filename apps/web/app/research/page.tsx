@@ -47,7 +47,8 @@ export default async function ResearchWorkspace() {
           <p>面向 A 股中长线的结构化研究。先识别市场环境，再研究行业轮动、企业质量与估值位置。每条判断都应有出处和失效条件。</p>
           <div className="research-hero-actions">
             <Link href="/data-center" className="research-primary">查看数据状态 <span>↗</span></Link>
-            <Link href="/research/lab" className="research-outline">离线因子实验室</Link>
+            <Link href="/research/sectors" className="research-outline">行业轮动实验 →</Link>
+            <Link href="/research/lab" className="research-outline">单股因子实验室</Link>
           </div>
         </div>
         <div className="research-focus-panel">
@@ -93,7 +94,7 @@ export default async function ResearchWorkspace() {
           <div className="research-card-heading"><div><span className="research-section-index">03</span><h2>研究工作流</h2></div><span className="research-muted">从论点到证据</span></div>
           <div className="research-steps">
             <div className="research-step"><b>01</b><div><strong>宏观与市场风格</strong><p>确认仓位环境，识别风险偏好与流动性变化。</p></div><span>待接入</span></div>
-            <div className="research-step"><b>02</b><div><strong>行业景气与轮动</strong><p>比较 20/60 日相对表现，过滤弱基本面的行业。</p></div><span>规则草案</span></div>
+            <div className="research-step"><b>02</b><div><strong>行业景气与轮动</strong><p>比较 20/60 日相对表现，过滤弱基本面的行业。</p></div><Link href="/research/sectors" className="research-small-link">双模型实验 →</Link></div>
             <div className="research-step"><b>03</b><div><strong>企业质量与价格位置</strong><p>现金流、估值分位和近期价格状态交叉核对。</p></div><span>可试算</span></div>
             <div className="research-step"><b>04</b><div><strong>对抗验证与复盘</strong><p>检查财报可见日期、幸存者偏差、滑点和样本外结果。</p></div><span>待验证</span></div>
           </div>
