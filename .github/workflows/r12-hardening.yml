@@ -117,5 +117,7 @@ jobs:
       - name: Quote cache unavailable before manual refresh
         shell: pwsh
         run: |
-          & .\scripts\dev-windows.ps1 -Mode status -Kind us_equity -Symbol AAPL
-          if ($LASTEXITCODE -ne 3) { throw "Expected no pre-filled public quote" }
+          $script = (Resolve-Path "scripts/dev-windows.ps1").Path
+          $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $script, "-Mode", "status", "-Kind", "us_equity", "-Symbol", "AAPL")
+          $process = Start-Process -FilePath "pwsh" -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+          if ($process.ExitCode -ne 3) { throw "Expected no pre-filled public quote, got exit code $($process.ExitCode)" }
