@@ -96,7 +96,18 @@ def _fingerprint(as_of: date, benchmark: str, dates: list[str], prices: list[flo
     normalized = {
         "as_of": as_of.isoformat(), "benchmark": benchmark, "dates": dates,
         "prices": prices, "source": source,
-        "sectors": sorted(sectors, key=lambda row: row["sector_id"]),
+        "sectors": [
+            {
+                "sector_id": sector["sector_id"],
+                "sector_name": sector["sector_name"],
+                "prices": [
+                    {"date": point["date"].isoformat() if isinstance(point["date"], date) else str(point["date"]),
+                     "close": float(point["close"])}
+                    for point in sector["prices"]
+                ],
+            }
+            for sector in sorted(sectors, key=lambda row: row["sector_id"])
+        ],
     }
     payload = json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
