@@ -56,6 +56,7 @@ test("explicit demo displays provenance, factor evidence, and model change", asy
   await page.goto("/research/sectors");
   await page.getByRole("button", {name:/加载合成演示并研究/}).click();
   await expect(page.getByText("DEMO · 合成演示数据")).toBeVisible();
+  await page.screenshot({path:"test-results/sector-research-desktop.png",fullPage:true});
   await expect(page.getByRole("heading", {name:"行业研究排序"})).toBeVisible();
   await expect(page.getByText("20日超额")).toBeVisible();
   await expect(page.getByText("输入 SHA256：")).toBeVisible();
@@ -97,4 +98,5 @@ test("research controls remain visible in a mobile viewport", async ({page}) => 
   await expect(page.getByRole("button",{name:/高级 · 手工 JSON 输入/})).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
+  await page.screenshot({path:"test-results/sector-research-mobile.png",fullPage:true});
 });
