@@ -11,10 +11,10 @@ test("multi-asset V3 real backend, two horizons and five risk-aware tabs", async
   const fingerprint=await page.locator(".asset-fingerprint code").textContent();
   expect(fingerprint).toMatch(/^[a-f0-9]{64}$/);
   await page.getByRole("button",{name:/贵金属/}).click();
-  await expect(page.getByText("合成银行纸黄金")).toBeVisible();
+  await expect(page.getByText("合成银行纸黄金").first()).toBeVisible();
   await expect(page.getByText(/银行产品规则/)).toBeVisible();
   await page.getByRole("button",{name:/期货/}).click();
-  await expect(page.getByText("合成商品期货合约")).toBeVisible();
+  await expect(page.getByText("合成商品期货合约").first()).toBeVisible();
   await expect(page.getByText(/逐日盯市/)).toBeVisible();
   await page.getByRole("button",{name:/国债/}).click();
   await expect(page.getByText(/利率上行 50bp/)).toBeVisible();
@@ -47,7 +47,7 @@ test("V3 mobile main actions and truthful empty state",async({page})=>{
   await page.setViewportSize({width:375,height:740});
   await page.goto("/research/assets");
   await expect(page.getByRole("button",{name:/运行合成多资产实验/})).toBeVisible();
-  await expect(page.getByText(/研究限制/)).toBeVisible();
+  await expect(page.getByText(/研究限制/).first()).toBeVisible();
   await expect(page.getByRole("heading",{name:"暂无多资产研究结果"})).toBeVisible();
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth);
   expect(overflow).toBe(false);
