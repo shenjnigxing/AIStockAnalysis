@@ -1,0 +1,38 @@
+name: One-time R1.2 Next security upgrade
+on:
+  push:
+    branches: [feat/r12-ten-role-hardening]
+    paths:
+      - ".github/workflows/r12-next-security-upgrade-once.yml"
+permissions:
+  contents: write
+jobs:
+  upgrade:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/r12-ten-role-hardening
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Update vulnerable Next 14 to October 2026 patched Next 15
+        working-directory: apps/web
+        run: |
+          npm install --save-exact next@15.5.28 react@19.2.6 react-dom@19.2.6
+          npm install --save-dev --save-exact @types/react@19 @types/react-dom@19
+      - name: Ensure dependency tree builds
+        working-directory: apps/web
+        run: |
+          npx tsc --noEmit
+          npm run build
+          npm audit --omit=dev --audit-level=critical
+      - name: Commit reproducible direct dependency and lock upgrades
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/package.json apps/web/package-lock.json
+          git diff --cached --quiet || git commit -m "security(r12): update patched Next 15 and React 19 with lockfile"
+          git push origin HEAD:feat/r12-ten-role-hardening
