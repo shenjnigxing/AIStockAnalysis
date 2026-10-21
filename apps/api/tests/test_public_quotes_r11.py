@@ -298,3 +298,52 @@ def test_us_and_okx_are_not_cross_account_ownership(monkeypatch):
     assert okx.status_code==200,okx.text
     assert okx.json()["quote"]["currency"]=="USDT"
     assert okx.json()["quote"]["product_type"]=="tokenized_stock"
+
+
+def test_okx_must_verify_public_stock_category_before_ticker(monkeypatch):
+    monkeypatch.setenv("MARKET_DATA_MODE","real")
+    class Response:
+        def __init__(self, payload): self.payload=payload
+        def __enter__(self): return self
+        def __exit__(self,*args): return False
+        def read(self,*args): return json.dumps(self.payload).encode("utf-8")
+    queries=[]
+    def urlopen(request,timeout):
+        url=request.full_url
+        queries.append(url)
+        if "/public/instruments?" in url:
+            return Response({"code":"0","data":[{
+                "instType":"SPOT","instId":"XTSLA-USDT",
+                "instCategory":"3","state":"live"}]})
+        if "/market/ticker?" in url:
+            return Response({"code":"0","data":[{
+                "instType":"SPOT","instId":"XTSLA-USDT",
+                "last":"201.37","ts":"1792440000000",
+                "bidPx":"201.35","askPx":"201.40"}]})
+        raise AssertionError("Unexpected URL")
+    import app.services.public_quote_sources as mod
+    monkeypatch.setattr(mod.urllib.request,"urlopen",urlopen)
+    data=fetch_public_quote("okx_stock_token","XTSLA-USDT")
+    assert data["value"]==201.37
+    assert data["time_quality"]=="provider_update_timestamp"
+    assert len(queries)==2
+    assert "/public/instruments?" in queries[0] and "/market/ticker?" in queries[1]
+
+
+def test_okx_rejects_non_stock_category_before_quote(monkeypatch):
+    monkeypatch.setenv("MARKET_DATA_MODE","real")
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self,*args): return False
+        def read(self,*args): return json.dumps({"code":"0","data":[{
+            "instType":"SPOT","instId":"XTSLA-USDT",
+            "instCategory":"1","state":"live"}]}).encode()
+    called=[]
+    import app.services.public_quote_sources as mod
+    def urlopen(req,timeout):
+        called.append(req.full_url)
+        return Response()
+    monkeypatch.setattr(mod.urllib.request,"urlopen",urlopen)
+    with pytest.raises(PublicQuoteSourceError,match="Not a listed live stock-token"):
+        fetch_public_quote("okx_stock_token","XTSLA-USDT")
+    assert len(called)==1
