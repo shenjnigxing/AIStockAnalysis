@@ -125,7 +125,7 @@ def test_legacy_real_order_account_mutations_are_off_by_default(monkeypatch):
         ("get","/api/live/positions"),
         ("get","/api/live/assets"),
     ]:
-        response=getattr(client,method)(path,json={} if method=="post" else None)
+        response=client.post(path,json={}) if method=="post" else client.get(path)
         assert response.status_code==403,(path,response.text)
         assert "disabled" in response.json()["detail"]
 
