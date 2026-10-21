@@ -80,7 +80,8 @@ def test_module1_quality_issue_recorded_for_invalid_ohlc(monkeypatch) -> None:
     with SessionLocal() as db:
         service = DataSyncService(db)
         job = service.sync_daily(symbols=["000001"], start_date=date(2026, 3, 28), end_date=date(2026, 3, 28))
-        assert job.status == "completed"
+        assert job.status == "failed"
+        assert "All daily rows invalid" in job.error_message
 
     with SessionLocal() as db:
         issue_count = db.scalar(
