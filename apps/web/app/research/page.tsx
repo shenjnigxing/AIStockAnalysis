@@ -4,12 +4,32 @@ import "./research.css";
 
 type LegacyRow = { symbol?: string; total_score?: number; recommendation_level?: string; action_suggestion?: string };
 type LegacyPayload = { items: LegacyRow[] };
+type DataReadiness = {
+  state: string; is_research_ready: boolean; can_generate_v2_recommendations: boolean;
+  as_of: string; stocks_total: number; stocks_active: number; symbols_with_daily_bars: number;
+  daily_bar_count: number; latest_daily_bar: string | null; latest_daily_age_calendar_days: number | null;
+  quality_issue_count: number; provenance: string;
+  last_daily_sync: { job_id: number; status: string; mode: string; provider: string; completed_at: string | null } | null;
+  last_failure: { job_type: string; error: string } | null;
+  warnings: string[];
+};
 
 export default async function ResearchWorkspace() {
-  const [legacy, capability] = await Promise.all([
+  const [legacy, capability, dataStatus] = await Promise.all([
     fetchApiResult<LegacyPayload>("/api/recommendation/top?limit=8", { items: [] }),
-    fetchApiResult<{ engine_version?: string; mode?: string }>("/api/research/v2/capabilities", {})
+    fetchApiResult<{ engine_version?: string; mode?: string }>("/api/research/v2/capabilities", {}),
+    fetchApiResult<DataReadiness>("/api/research/v2/data-readiness", {
+      state: "service_unreachable", is_research_ready: false, can_generate_v2_recommendations: false,
+      as_of: "", stocks_total: 0, stocks_active: 0, symbols_with_daily_bars: 0,
+      daily_bar_count: 0, latest_daily_bar: null, latest_daily_age_calendar_days: null,
+      quality_issue_count: 0, provenance: "unknown", last_daily_sync: null,
+      last_failure: null, warnings: ["研究数据诊断 API 暂时不可用；请检查后端连接。"]
+    })
   ]);
+  const health = dataStatus.data;
+  const readinessLabel = !dataStatus.ok ? "服务不可达" :
+    health.state === "synthetic_data_detected" ? "检测到模拟数据" :
+    health.state === "no_usable_dataset" ? "没有可用数据" : "历史数据待核验";
   const items = Array.isArray(legacy.data.items) ? legacy.data.items : [];
   const isEngineOnline = capability.ok && capability.data.mode === "research_only";
   return (
@@ -39,14 +59,33 @@ export default async function ResearchWorkspace() {
       <div className="research-section-head"><div><span className="research-section-index">01</span><h2>当前研究就绪度</h2></div><span className="research-section-note">系统能力与数据事实分开呈现</span></div>
       <div className="research-metric-grid">
         <div className="research-metric"><span>V2 规则评分</span><strong>{isEngineOnline ? "可调用" : "不可用"}</strong><small>{isEngineOnline ? "只读 · 不连接下单" : "API 未连通，请检查后端"}</small></div>
-        <div className="research-metric"><span>全市场财务快照</span><strong>未验证</strong><small>尚未接入可审计的时点财报集</small></div>
-        <div className="research-metric"><span>算法样本外表现</span><strong>待验证</strong><small>不能把主观评分视为超额收益</small></div>
-        <div className="research-metric"><span>旧版候选结果</span><strong>{legacy.ok ? items.length.toString() : "离线"}</strong><small>{legacy.ok ? "用于迁移对照，不代表 V2 通过验证" : "旧版推荐服务无法访问"}</small></div>
+        <div className="research-metric"><span>历史 K 线覆盖标的</span><strong>{dataStatus.ok ? health.symbols_with_daily_bars.toLocaleString("zh-CN") : "—"}</strong><small>数据来源未核实，不能视作有效样本</small></div>
+        <div className="research-metric"><span>最近日线日期</span><strong>{dataStatus.ok ? (health.latest_daily_bar || "无") : "—"}</strong><small>{health.latest_daily_age_calendar_days === null ? "交易日新鲜度尚待校验" : `距研究日 ${health.latest_daily_age_calendar_days} 个日历日 · 不等于交易日`}</small></div>
+        <div className="research-metric"><span>研究数据审查</span><strong className="research-critical-text">{readinessLabel}</strong><small>已记录质量问题：{dataStatus.ok ? health.quality_issue_count : "—"}</small></div>
       </div>
+
+      <section className="research-data-panel" aria-labelledby="data-audit-title">
+        <div className="research-data-heading">
+          <div><span className="research-section-index">02</span><h2 id="data-audit-title">数据真实性审查</h2></div>
+          <span className="research-data-state">V2 推荐被禁止 · 尚无可信数据快照</span>
+        </div>
+        <div className="research-data-detail">
+          <div><span>数据库股票总量</span><strong>{dataStatus.ok ? health.stocks_total.toLocaleString("zh-CN") : "未知"}</strong></div>
+          <div><span>日线历史记录</span><strong>{dataStatus.ok ? health.daily_bar_count.toLocaleString("zh-CN") : "未知"}</strong></div>
+          <div><span>最近日线同步</span><strong>{health.last_daily_sync ? `${health.last_daily_sync.status} / ${health.last_daily_sync.mode}` : "未记录来源"}</strong></div>
+          <div><span>数据溯源</span><strong>历史库未经逐条验证</strong></div>
+        </div>
+        <p className="research-data-explanation">旧数据库可能残留此前自动生成的模拟行情。新增防护只阻止后续静默生成，不能自动证明已有记录真实。本页面不根据这些记录提供 V2 买卖建议。</p>
+        {health.last_failure && <p className="research-warning" role="alert">最近同步失败：{health.last_failure.job_type} · {health.last_failure.error}</p>}
+        <details className="research-audit-details"><summary>查看数据风险与缺口（{health.warnings.length}）</summary>
+          <ul>{health.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul>
+        </details>
+        <Link href="/data-center" className="research-small-link">前往数据中心检查同步任务 →</Link>
+      </section>
 
       <div className="research-content-grid">
         <section className="research-surface">
-          <div className="research-card-heading"><div><span className="research-section-index">02</span><h2>研究工作流</h2></div><span className="research-muted">从论点到证据</span></div>
+          <div className="research-card-heading"><div><span className="research-section-index">03</span><h2>研究工作流</h2></div><span className="research-muted">从论点到证据</span></div>
           <div className="research-steps">
             <div className="research-step"><b>01</b><div><strong>宏观与市场风格</strong><p>确认仓位环境，识别风险偏好与流动性变化。</p></div><span>待接入</span></div>
             <div className="research-step"><b>02</b><div><strong>行业景气与轮动</strong><p>比较 20/60 日相对表现，过滤弱基本面的行业。</p></div><span>规则草案</span></div>
@@ -55,8 +94,8 @@ export default async function ResearchWorkspace() {
           </div>
         </section>
         <section className="research-surface">
-          <div className="research-card-heading"><div><span className="research-section-index">03</span><h2>旧版候选池观察</h2></div><Link className="research-small-link" href="/recommendations">查看旧版 →</Link></div>
-          <p className="research-warning">下列结果来自原有评分模型，不是 V2 评分或实时买入建议。</p>
+          <div className="research-card-heading"><div><span className="research-section-index">04</span><h2>旧版候选池观察</h2></div><Link className="research-small-link" href="/recommendations">查看旧版 →</Link></div>
+          <p className="research-warning">下列结果来自旧版评分模型。历史数据可能含模拟行情，未经过来源验证；仅保留为迁移对照，不是实际股票建议。</p>
           {items.length > 0 ?
             <div className="research-ticker-list">
               {items.map((item, index) => <Link href={`/stock/${encodeURIComponent(String(item.symbol || ""))}`} key={index} className="research-ticker">
