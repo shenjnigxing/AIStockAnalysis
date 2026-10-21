@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public_quote_snapshots (
     source_display_time VARCHAR(96) NOT NULL DEFAULT '',
     source_timestamp_utc TIMESTAMP WITHOUT TIME ZONE NULL,
     time_quality VARCHAR(32) NOT NULL CHECK(
-        time_quality IN ('time_unverified','daily_observation','provider_update_timestamp')
+        time_quality IN ('time_unverified','daily_observation','provider_update_timestamp','bar_timestamp')
     ),
     request_duration_ms INTEGER NOT NULL CHECK(request_duration_ms >= 0),
     source_record_sha256 VARCHAR(64) NOT NULL,
