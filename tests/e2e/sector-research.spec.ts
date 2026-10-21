@@ -66,7 +66,7 @@ test("explicit demo displays provenance, factor evidence, and model change", asy
   expect(submitted[1].model).toBe("trend");
   expect(submitted[1].sectors.length).toBe(4);
   await page.getByRole("button", {name:"合成趋势行业"}).click();
-  await expect(page.getByText("60日趋势")).toBeVisible();
+  await expect(page.getByText("60 日趋势")).toBeVisible();
   await expect(page.getByText("未触发此基线的规则风险项；不代表无风险。")).toBeVisible();
 });
 
@@ -86,7 +86,7 @@ test("invalid response shows error and drops former results", async ({page}) => 
   await page.getByRole("button", {name:/加载合成演示并研究/}).click();
   await expect(page.getByRole("heading",{name:"行业研究排序"})).toBeVisible();
   await page.getByRole("button",{name:/趋势 · 延续/}).click();
-  await expect(page.getByRole("alert")).toContainText("date axis mismatch");
+  await expect(page.locator(".sector-error")).toContainText("date axis mismatch");
   await expect(page.getByRole("heading",{name:"行业研究排序"})).toHaveCount(0);
 });
 
