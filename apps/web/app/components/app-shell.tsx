@@ -8,6 +8,7 @@ const research: Item[] = [
   { href: "/research", name: "研究工作台", icon: "◈" },
   { href: "/research/assets", name: "多资产研究 V3", icon: "◈" },
   { href: "/research/data-lineage", name: "数据发布与血缘", icon: "▤" },
+  { href: "/research/market-data", name: "行情源与账户", icon: "▦" },
   { href: "/research/sectors", name: "行业轮动实验", icon: "◱" },
   { href: "/scanner", name: "市场扫描", icon: "⌁" },
   { href: "/recommendations", name: "旧版推荐对照", icon: "↗" },
