@@ -140,7 +140,7 @@ export default function MultiAssetPage() {
       </div>
       <div className="asset-status"><span className="asset-led"/> 数据未验证 <small>不支持真实推荐和消息发送</small></div>
     </div>
-    <div className="asset-disclaimer" role="status"><b>研究限制</b> 当前没有可审计的多资产 PIT 数据和样本外绩效。合成示例必须手动运行，所有分数仅用于算法检验，不代表收益或投资建议。</div>
+    <div className="asset-disclaimer" role="status"><b>研究限制</b> 当前没有可审计的多资产 PIT 数据和样本外绩效。合成示例必须手动运行，所有分数仅用于算法检验，不代表收益或投资建议。 <Link href="/research/data-lineage">查看数据发布与来源核验 →</Link></div>
     <section className="asset-toolbar">
       <div className="asset-toolbar-title"><strong>研究窗口</strong><span>选择观察周期，不混排跨资产结果</span></div>
       <div className="asset-horizons">
