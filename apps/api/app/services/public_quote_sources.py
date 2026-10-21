@@ -109,10 +109,12 @@ def fetch_public_quote(kind: str, symbol: str) -> dict[str, Any]:
     """
     if os.getenv("MARKET_DATA_MODE", "real").strip().lower() != "real":
         raise PublicQuoteSourceError("Mock data mode may not publish public quotes")
-    try:
-        import akshare as ak
-    except ImportError as exc:
-        raise PublicQuoteSourceError("AKShare not installed") from exc
+    # Yahoo and OKX adapters must not require the domestic AKShare dependency.
+    if kind in ("equity", "etf", "sge_gold", "futures", "treasury_10y"):
+        try:
+            import akshare as ak
+        except ImportError as exc:
+            raise PublicQuoteSourceError("AKShare not installed") from exc
     try:
         if kind == "equity":
             frame = ak.stock_bid_ask_em(symbol=symbol)
