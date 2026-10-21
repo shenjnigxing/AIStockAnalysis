@@ -4,6 +4,9 @@ on:
     branches: [feat/r12-ten-role-hardening]
     paths:
       - ".github/workflows/r12-next-security-upgrade-once.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/r12-next-security-upgrade-once.yml"
 permissions:
   contents: write
 jobs:
