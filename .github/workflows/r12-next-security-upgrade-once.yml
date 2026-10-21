@@ -1,0 +1,47 @@
+name: One-time R1.2 patched dependency lockfile
+on:
+  push:
+    branches: [feat/r12-ten-role-hardening]
+    paths:
+      - ".github/workflows/r12-next-security-upgrade-once.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/r12-next-security-upgrade-once.yml"
+permissions:
+  contents: write
+concurrency:
+  group: r12-security-lockfile-single-writer
+  cancel-in-progress: false
+jobs:
+  lock-patched-dependencies:
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/r12-ten-role-hardening
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Patch reviewed vulnerable transitives without Next 16 breaking upgrade
+        working-directory: apps/web
+        run: |
+          npm pkg set 'overrides.nanoid=3.3.20' 'overrides.postcss=8.5.25' 'overrides.source-map-js=1.2.2'
+          npm install
+          npm ls next react react-dom nanoid postcss source-map-js
+      - name: Verify app and security audit
+        working-directory: apps/web
+        run: |
+          npx tsc --noEmit
+          npm run build
+          npm audit --omit=dev --audit-level=high
+      - name: Commit exact audited lockfile to feature branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/package.json apps/web/package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "security(r12): pin audited safe transitive dependency versions"
+            git push origin HEAD:feat/r12-ten-role-hardening
+          fi
