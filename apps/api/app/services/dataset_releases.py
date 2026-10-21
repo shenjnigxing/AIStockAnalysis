@@ -65,11 +65,20 @@ def validate_bars(rows: list[dict[str, Any]], start: date, end: date) -> list[di
     return normalized
 
 
+def _venue(symbol: str) -> str:
+    return ("SSE" if symbol.startswith(("6", "5")) else
+            "SZSE" if symbol.startswith(("0", "1", "3")) else "BSE")
+
+
 def _manifest(*, kind: str, symbol: str, start: date, end: date,
-              source_id: str, raw_hash: str, rows_hash: str) -> dict[str, str]:
+              source_id: str, raw_hash: str, rows_hash: str,
+              row_count: int) -> dict[str, Any]:
     return {
         "asset_class": REGISTRY[kind]["asset_class"], "product_type": REGISTRY[kind]["product_type"],
         "source_id": source_id, "symbol": symbol, "adjustment": "none",
+        "venue": _venue(symbol), "currency": "CNY",
+        "volume_unit": REGISTRY[kind]["volume_unit"],
+        "row_count": row_count,
         "date_from": start.isoformat(), "date_to": end.isoformat(),
         "raw_sha256": raw_hash, "rows_sha256": rows_hash, "schema_version": "r1.0",
     }
@@ -102,13 +111,13 @@ def ingest_equity_or_etf_daily(db: Session, *, kind: str, symbol: str,
     raw_hash = _hash(raw)
     spec = REGISTRY[kind]
     manifest = _manifest(kind=kind, symbol=symbol, start=start, end=end,
-                         source_id=spec["source_id"], raw_hash=raw_hash, rows_hash=rows_hash)
+                         source_id=spec["source_id"], raw_hash=raw_hash, rows_hash=rows_hash,
+                         row_count=len(clean))
     fingerprint = _hash(_canonical(manifest))
     existing = db.scalar(select(DatasetRelease).where(DatasetRelease.fingerprint == fingerprint))
     if existing is not None:
         return {"created": False, "release": get_dataset_release(db, existing.id)["release"]}
-    venue = ("SSE" if symbol.startswith(("6", "5")) else
-             "SZSE" if symbol.startswith(("0", "1", "3")) else "BSE")
+    venue = _venue(symbol)
     release = DatasetRelease(
         fingerprint=fingerprint, source_id=spec["source_id"],
         asset_class=spec["asset_class"], product_type=spec["product_type"],
@@ -165,13 +174,22 @@ def get_dataset_release(db: Session, release_id: int) -> dict[str, Any]:
             kind="equity" if release.asset_class == "equity" else "etf",
             symbol=release.symbol, start=release.date_from, end=release.date_to,
             source_id=release.source_id, raw_hash=release.raw_sha256, rows_hash=release.rows_sha256,
+            row_count=release.row_count,
         )
         verified = (
             len(bars) == release.row_count and persisted_hash == release.rows_sha256
             and _hash(release.raw_payload_json) == release.raw_sha256
             and _hash(_canonical(manifest)) == release.fingerprint
-            and release.source_id in {item["source_id"] for item in REGISTRY.values()}
+            and release.source_id == REGISTRY["equity" if release.asset_class == "equity" else "etf"]["source_id"]
+            and release.product_type == manifest["product_type"]
+            and release.asset_class == manifest["asset_class"]
+            and release.venue == manifest["venue"]
+            and release.currency == manifest["currency"]
+            and release.adjustment == manifest["adjustment"]
+            and release.volume_unit == manifest["volume_unit"]
+            and release.schema_version == "r1.0"
             and release.status == "provider_recorded"
+            and release.quality_state == "schema_validated_only"
         )
     except (DatasetValidationError, KeyError, ValueError, TypeError):
         verified = False
