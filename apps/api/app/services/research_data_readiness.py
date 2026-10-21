@@ -92,7 +92,7 @@ def research_data_readiness(db: Session, *, as_of: date | None = None) -> dict[s
             if last_daily_sync else None
         ),
         "last_failure": (
-            {"job_type": last_any_failure.job_type, "error": (last_any_failure.error_message or "")[:250]}
+            {"job_type": last_any_failure.job_type, "error": "同步失败；完整诊断仅在服务端任务日志中查看"}
             if last_any_failure else None
         ),
         "provenance": "unverified_legacy_store",
