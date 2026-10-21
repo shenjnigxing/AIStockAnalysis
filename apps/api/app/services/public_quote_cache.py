@@ -188,11 +188,21 @@ def quote_status(db: Session) -> dict[str, Any]:
     for kind, spec in SOURCES.items():
         row = db.scalar(select(PublicQuoteSnapshot).where(
             PublicQuoteSnapshot.kind == kind).order_by(PublicQuoteSnapshot.id.desc()).limit(1))
+        attempt = db.scalar(select(PublicQuoteFetchAttempt).where(
+            PublicQuoteFetchAttempt.kind == kind
+        ).order_by(PublicQuoteFetchAttempt.id.desc()).limit(1))
         result.append({
             "kind": kind, "source_id": spec["source_id"],
-            "metric": spec["metric"], "cooldown_seconds": spec["cooldown"],
+            "metric": spec["metric"], "unit": spec["unit"],
+            "currency": spec["currency"],
+            "cooldown_seconds": spec["cooldown"],
             "has_cached_snapshot": row is not None,
             "last_collected_at_utc": row.collected_at_utc.isoformat() + "Z" if row else None,
+            "last_attempt_state": attempt.state if attempt else "never",
+            "last_attempt_at_utc": (
+                attempt.attempted_at_utc.isoformat() + "Z" if attempt else None
+            ),
+            "last_error_code": attempt.error_code if attempt and attempt.state == "failure" else None,
         })
     return {"providers": result, "provider_verified": False,
             "research_eligible": False, "notifications_enabled": False,
