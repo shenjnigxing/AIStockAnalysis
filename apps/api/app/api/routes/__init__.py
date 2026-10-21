@@ -11,6 +11,7 @@ from app.api.routes.paper import router as paper_router
 from app.api.routes.recommendation import router as recommendation_router
 from app.api.routes.research_v2 import router as research_v2_router
 from app.api.routes.research_v3 import router as research_v3_router
+from app.api.routes.dataset_releases import router as dataset_releases_router
 from app.api.routes.replay import router as replay_router
 from app.api.routes.risk import router as risk_router
 from app.api.routes.screener import router as screener_router
@@ -28,6 +29,7 @@ api_router.include_router(strategy_router, prefix="/api/strategy", tags=["strate
 api_router.include_router(recommendation_router, prefix="/api/recommendation", tags=["recommendation"])
 api_router.include_router(research_v2_router, prefix="/api/research/v2", tags=["research-v2"])
 api_router.include_router(research_v3_router, prefix="/api/research/v3", tags=["research-v3"])
+api_router.include_router(dataset_releases_router, prefix="/api/research/v3/datasets", tags=["dataset-releases"])
 api_router.include_router(backtest_router, prefix="/api/backtest", tags=["backtest"])
 api_router.include_router(paper_router, prefix="/api/paper", tags=["paper"])
 api_router.include_router(risk_router, prefix="/api/risk", tags=["risk"])
