@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 class ResearchBatchRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+    model_config = ConfigDict(extra="forbid")
     as_of: date
     market_regime: Literal["strong", "neutral", "weak", "panic"]
     items: list[dict[str, Any]] = Field(min_length=1, max_length=500)
