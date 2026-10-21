@@ -3,10 +3,27 @@ param([switch]$RunTests)
 Push-Location $RepoRoot
 try {
   if (-not (Test-Path $Python)) {
-    if (Get-Command py -ErrorAction SilentlyContinue) { & py -3 -m venv .venv }
-    else { & python -m venv .venv }
-    if ($LASTEXITCODE -ne 0) { throw 'Python 3.11+ is required.' }
+    # Prefer the PATH interpreter (including setup-python), never py -3's newest runtime.
+    $candidates = @(
+      @{ Command = 'python'; Prefix = @() },
+      @{ Command = 'py'; Prefix = @('-3.12') },
+      @{ Command = 'py'; Prefix = @('-3.11') }
+    )
+    $created = $false
+    foreach ($candidate in $candidates) {
+      if (-not (Get-Command $candidate.Command -ErrorAction SilentlyContinue)) { continue }
+      $prefix = $candidate.Prefix
+      & $candidate.Command @prefix -c "import sys; sys.exit(0 if sys.version_info[:2] in ((3,11),(3,12)) else 1)"
+      if ($LASTEXITCODE -ne 0) { continue }
+      & $candidate.Command @prefix -m venv .venv
+      if ($LASTEXITCODE -ne 0) { throw 'Virtual environment creation failed.' }
+      $created = $true
+      break
+    }
+    if (-not $created) { throw 'Install Python 3.11 or 3.12; this dependency set does not support Python 3.14.' }
   }
+  & $Python -c "import sys; sys.exit(0 if sys.version_info[:2] in ((3,11),(3,12)) else 1)"
+  if ($LASTEXITCODE -ne 0) { throw 'Existing .venv uses an unsupported Python. Rename it and rerun with Python 3.11/3.12.' }
   & $Python -m pip install -r apps/api/requirements.txt
   if ($LASTEXITCODE -ne 0) { throw 'Backend dependency installation failed.' }
   & npm.cmd ci --prefix apps/web

@@ -1,6 +1,6 @@
 # R1.2 晚间 Windows 验收操作手册（用户可逐步照做）
 
-> 分支 `feat/windows-collection-review-r12`，需要 **Python 3.11+、Node.js 20+、PowerShell 5.1+**。运行程序时不会登录东方财富/期货/OKX 账户。**不构成真实买入推荐，不要据此下单。**
+> 分支 `feat/windows-collection-review-r12`，需要 **Python 3.11 或 3.12、Node.js 20+、PowerShell 5.1+**。运行程序时不会登录东方财富/期货/OKX 账户。**不构成真实买入推荐，不要据此下单。**
 
 ## A. 获取分支（仓库根目录）
 ```powershell
