@@ -119,11 +119,14 @@ def test_legacy_real_order_account_mutations_are_off_by_default(monkeypatch):
     monkeypatch.setenv("BROKER_PROVIDER", "mock")
     for method,path in [
         ("post","/api/live/order"),
+        ("post","/api/live/order/preview"),
         ("post","/api/live/order/1/cancel"),
         ("post","/api/live/sync/account"),
         ("get","/api/live/orders"),
         ("get","/api/live/positions"),
         ("get","/api/live/assets"),
+        ("get","/api/live/broker/status"),
+        ("get","/api/live/broker/capabilities"),
     ]:
         response=client.post(path,json={}) if method=="post" else client.get(path)
         assert response.status_code==403,(path,response.text)
