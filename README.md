@@ -3,6 +3,9 @@
 > **Research Preview, not a production recommendation engine.** The original Phase 0 capabilities are still present. For the V2 branch, the first priority is provable data integrity rather than generating more convincing stock lists.
 
 - Research workspace: `http://localhost:3000/research`
+- Sector-first model research: `/research/sectors` (explicit synthetic-demo mode; not a real market ranking)
+- V2 design documentation index: [`docs/architecture/v2/README.md`](docs/architecture/v2/README.md)
+- Verification: complete backend pytest, TypeScript/Next build, Chromium smoke, and Next.js-to-FastAPI integration in GitHub Actions
 - Offline factor lab: `/research/lab`
 - Data readiness (read-only): `GET http://localhost:8000/api/research/v2/data-readiness`
 - Honest provenance: historical DB bars remain `unverified_legacy_store` until a complete per-row provenance migration.
