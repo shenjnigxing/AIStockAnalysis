@@ -27,9 +27,9 @@
 - 独立skeptic定向复核：37 passed（发生在合并原R12之前）；另有第二轮Docker路径反馈已修复。
 - Next15.5.28/React19.2.6生产构建通过；npm audit --omit=dev --audit-level=high返回0漏洞。
 - 实际启动API/Web并通过HTTP检查：health、Web代理到8类sources、服务端页面含采集指引。合并前后均通过。该项是HTTP集成，不能代替浏览器交互。
-- 本环境Chromium下载失败（下载内容非有效ZIP），本轮本地浏览器E2E未通过执行条件。已保留原R12真实浏览器CI，并新增Windows脚本启动CI。
+- 本环境Chromium下载失败（下载内容非有效ZIP），本轮本地浏览器E2E未通过执行条件；已在GitHub云端完成真实Chromium集成13/13（运行39576945996）。
 - 真实外部接口试采A股600000、美股AAPL、美股ETF QQQ：三项均明确失败，未产生伪造行情。受运行环境网络/源可用性影响，**不能声称真实采集成功、低延时或可稳定联网**。
-- 当前环境没有Windows运行时；Windows脚本经过静态复核，实际Windows启动结果需读取CI记录或用户本机验证。
+- 当前环境没有Windows运行时；已通过GitHub Windows runner实际验收：Python3.11.9、Node22.23.3，194项测试通过、时区与API导入/数据库初始化通过、API和Web经脚本启动且Web代理读到sources（运行39576946232）。首轮py -3误选3.14导致依赖安装失败，已修复选择受支持的PATH Python3.11/3.12。
 
 ## 迁移与操作
 
@@ -39,4 +39,14 @@
 
 ## 仍未完成的验收条件
 
-真实券商/OKX私有账户接入、真实账单列格式和导入、PIT与历史财报时间完整性、全市场行业轮动推荐池、样本外收益/容量/换手和交易成本验证、生产采集队列与跨进程互斥、真实浏览器及Windows实机验收。它们不能靠把按钮或能力目录写出来就算完成。
+真实券商/OKX私有账户接入、真实账单列格式和导入、PIT与历史财报时间完整性、全市场行业轮动推荐池、样本外收益/容量/换手和交易成本验证、生产采集队列与跨进程互斥、用户本人Windows机器与实际网络环境验收。它们不能靠把按钮或能力目录写出来就算完成。
+
+## 云端验收记录
+
+验证代码提交：`ed5c6c7408f92cfe2597f2c4b2d216a8dd31d6a7`。后续仅补充本段文档。
+
+- Windows完整安装、194测试与API/Web实际启动：https://github.com/shenjnigxing/AIStockAnalysis/actions/runs/39576946232
+- 后端、前端、依赖审计、13项Chromium集成、Windows离线自检均通过：https://github.com/shenjnigxing/AIStockAnalysis/actions/runs/39576945996
+- 草稿PR：https://github.com/shenjnigxing/AIStockAnalysis/pull/6
+
+外部源试采失败仍然保留，Windows安装启动通过不代表行情源能访问，也不代表推荐模型验收通过。
