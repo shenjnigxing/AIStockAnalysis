@@ -10,6 +10,7 @@
 | [03 多资产算法](03-algorithms.md) | 品类专属因子、两研究周期、统计 OOS 验证门槛 |
 | [04 机器人与邮件](04-channel-delivery.md) | 企业微信/邮箱订阅、幂等、限频、失败未知、静默时段 |
 | [05 UI 与测试](05-ui-test-and-rollout.md) | 多资产研究界面、API/test/CI、成熟版本路线 |
+| [06 实现与反向评审](06-implementation-and-review.md) | 真实联调缺陷、浏览器截图与成熟版本发布阻断 |
 
 ## 第一阶段实际交付代码
 
