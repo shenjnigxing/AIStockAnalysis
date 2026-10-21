@@ -89,3 +89,33 @@ jobs:
             playwright-report/
           if-no-files-found: ignore
           retention-days: 14
+
+  windows-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Parse Windows scripts for PowerShell syntax
+        shell: pwsh
+        run: |
+          foreach ($path in @("scripts/setup-windows.ps1","scripts/dev-windows.ps1")) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path).Path,[ref]$tokens,[ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) { throw "PowerShell syntax errors in $path" }
+          }
+      - name: First-run Windows setup and offline doctor
+        shell: pwsh
+        run: |
+          & .\scripts\setup-windows.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Windows setup/doctor failed" }
+      - name: Quote cache unavailable before manual refresh
+        shell: pwsh
+        run: |
+          & .\scripts\dev-windows.ps1 -Mode status -Kind us_equity -Symbol AAPL
+          if ($LASTEXITCODE -ne 3) { throw "Expected no pre-filled public quote" }
