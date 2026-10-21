@@ -7,7 +7,7 @@ test("R1.1 source catalog + three accounts are separate and unconnected",async({
   await expect(page.getByText("东方财富证券")).toBeVisible();
   await expect(page.getByText("东方财富期货")).toBeVisible();
   await expect(page.getByText("欧易 OKX")).toBeVisible();
-  await expect(page.getByText("美股个股")).toBeVisible();
+  await expect(page.locator(".md-provider").getByText("美股个股")).toBeVisible();
   await expect(page.getByText(/尚未连接 · 只读账单格式待核验/).first()).toBeVisible();
   await page.screenshot({path:"test-results/r11-source-catalog-desktop.png",fullPage:true});
   await page.getByRole("button",{name:"查看本地快照"}).click();
@@ -37,7 +37,7 @@ test("R1.1 mobile sources and account risk copy are visible without overflow",as
   await page.goto("/research/market-data");
   await expect(page.getByText("东方财富期货")).toBeVisible();
   await expect(page.getByText("欧易 OKX")).toBeVisible();
-  await expect(page.getByText("美股 ETF")).toBeVisible();
+  await expect(page.locator(".md-provider").getByText("美股 ETF")).toBeVisible();
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
   expect(overflow).toBe(false);
   await page.screenshot({path:"test-results/r11-source-catalog-mobile.png",fullPage:true});
