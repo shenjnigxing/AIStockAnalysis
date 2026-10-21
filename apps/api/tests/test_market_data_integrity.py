@@ -9,7 +9,8 @@ from app.db.models import DailyBar, StockMaster, SyncCheckpoint
 from app.db.session import SessionLocal
 from app.main import app
 from app.services.adapters.market_data import AkshareMarketDataAdapter
-from app.services.data_sync import DataSyncService, _validate_ohlc_row
+from app.services.data_sync import DataSyncService
+from data_ingest.data_sync import _validate_ohlc_row
 
 client = TestClient(app)
 
