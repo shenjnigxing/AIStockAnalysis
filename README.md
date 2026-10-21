@@ -1,3 +1,21 @@
+# AIStock Research V2 — preview
+
+> **Research Preview, not a production recommendation engine.** The original Phase 0 capabilities are still present. For the V2 branch, the first priority is provable data integrity rather than generating more convincing stock lists.
+
+- Research workspace: `http://localhost:3000/research`
+- Sector-first model research: `/research/sectors` (explicit synthetic-demo mode; not a real market ranking)
+- V2 design documentation index: [`docs/architecture/v2/README.md`](docs/architecture/v2/README.md)
+- Verification: complete backend pytest, TypeScript/Next build, Chromium smoke, and Next.js-to-FastAPI integration in GitHub Actions
+- Offline factor lab: `/research/lab`
+- Data readiness (read-only): `GET http://localhost:8000/api/research/v2/data-readiness`
+- Honest provenance: historical DB bars remain `unverified_legacy_store` until a complete per-row provenance migration.
+- Safety: `MARKET_DATA_MODE=real` refuses silent fabricated quotes; `mock` must be enabled explicitly and cannot run in `APP_ENV=production`.
+- AKShare provider: `akshare==1.19.1` installed through `apps/api/requirements.txt`. This does not guarantee any external endpoint is reachable.
+- Iteration / decisions: `docs/architecture/aistock_v2_data_integrity_iteration.md`.
+- Automated checks: GitHub Actions `Research V2 validation`; green checks still do not prove point-in-time data quality or backtest alpha.
+
+---
+
 # Stock Assistant (Phase 0)
 
 This repository contains a runnable scaffold for a personal stock analysis and trading assistant, covering Phase 0 baseline and a full mockable pipeline through data, strategy, recommendation, backtest, paper/live trading, risk, notification, settings, init, replay and admin endpoints.

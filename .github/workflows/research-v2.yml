@@ -1,0 +1,125 @@
+name: Research V2 validation
+on:
+  push:
+    branches: [feat/aistock-research-v2]
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "apps/web/**"
+      - ".github/workflows/research-v2.yml"
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+      - run: python -m pip install -r apps/api/requirements.txt
+      - name: Configure monorepo service imports
+        shell: bash
+        run: |
+          modules=$(find "$GITHUB_WORKSPACE/services" -mindepth 1 -maxdepth 1 -type d | paste -sd ':' -)
+          echo "PYTHONPATH=$GITHUB_WORKSPACE/apps/api:$modules" >> "$GITHUB_ENV"
+      - name: Run full backend regression suite
+        run: python -m pytest -q apps/api/tests
+      - name: Check v2 router registration
+        run: python -c "from app.main import app; assert any(r.path == '/api/research/v2/evaluate' for r in app.routes)"
+  frontend:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: "http://127.0.0.1:8000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install
+        working-directory: apps/web
+        run: npm ci
+      - name: Typecheck
+        working-directory: apps/web
+        run: npx tsc --noEmit
+      - name: Build
+        working-directory: apps/web
+        run: npm run build
+  browser-smoke:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: "http://127.0.0.1:8000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install Playwright and Next dependencies
+        run: |
+          npm ci
+          npm ci --prefix apps/web
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test research interaction in Chromium
+        run: npx playwright test tests/e2e/sector-research.spec.ts
+      - name: Retain browser screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sector-research-visual-evidence
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
+  integrated-research:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+      API_BASE_URL: "http://127.0.0.1:8000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: python -m pip install -r apps/api/requirements.txt
+      - run: |
+          npm ci
+          npm ci --prefix apps/web
+      - run: npx playwright install --with-deps chromium
+      - name: Launch real research API and verify health
+        run: |
+          modules=$(find "$GITHUB_WORKSPACE/services" -mindepth 1 -maxdepth 1 -type d | paste -sd ':' -)
+          export PYTHONPATH="$GITHUB_WORKSPACE/apps/api:$modules"
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/aistock-research-api.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/aistock-research-api.log
+          exit 1
+      - name: Browser-to-real-API integration
+        run: npx playwright test tests/e2e/sector-research.integration.spec.ts
+      - name: Capture integration evidence and errors
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sector-research-fullstack-evidence
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14

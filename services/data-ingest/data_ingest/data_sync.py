@@ -1,4 +1,6 @@
 import json
+import os
+import math
 from datetime import date, datetime, timedelta
 from typing import Any, Callable
 
@@ -112,15 +114,25 @@ def _get_or_create_checkpoint(db: Session, job_type: str, scope_key: str) -> Syn
 
 def _list_symbols(db: Session) -> list[str]:
     symbols = db.scalars(select(StockMaster.symbol).where(StockMaster.is_active.is_(True)).limit(200)).all()
-    return list(symbols) if symbols else ["000001", "600000", "600519"]
+    if symbols:
+        return list(symbols)
+    if os.getenv("MARKET_DATA_MODE", "real").strip().lower() == "mock":
+        return ["000001", "600000", "600519"]
+    raise ValueError("Stock master is empty; sync real stock master first. Refusing hardcoded ticker fallback.")
 
 
 def _validate_ohlc_row(row: dict[str, Any]) -> bool:
-    if row["open"] < 0 or row["high"] < 0 or row["low"] < 0 or row["close"] < 0:
+    try:
+        values = [float(row[key]) for key in ("open", "high", "low", "close", "volume", "amount")]
+        opening, high, low, closing, volume, amount = values
+        return (
+            all(math.isfinite(v) for v in values)
+            and low > 0 and low <= min(opening, closing)
+            and high >= max(opening, closing)
+            and volume >= 0 and amount >= 0
+        )
+    except (KeyError, ValueError, TypeError):
         return False
-    if row["high"] < row["low"]:
-        return False
-    return True
 
 
 class DataSyncService:
@@ -142,6 +154,9 @@ class DataSyncService:
         job_id = job.id
         try:
             result = runner(job)
+            result["data_mode"] = self.adapter.mode
+            result["data_provider"] = "synthetic_demo" if self.adapter.mode == "mock" else "akshare"
+            result["point_in_time_verified"] = False
             job.status = "completed"
             job.result_json = json.dumps(result, ensure_ascii=True, default=str)
             job.finished_at = datetime.utcnow()
@@ -186,17 +201,27 @@ class DataSyncService:
                     continue
                 fetched_rows = self.adapter.fetch_daily_bars(symbol=symbol, start_date=start, end_date=end)
                 rows = []
+                invalid_count = 0
                 for row in fetched_rows:
                     if not _validate_ohlc_row(row):
+                        invalid_count += 1
                         self.db.add(
                             DataQualityIssue(
                                 issue_type="invalid_ohlc",
                                 symbol=symbol,
-                                detail=f"date={row['trade_date']}",
+                                detail=f"date={row.get('trade_date', 'unknown')}",
                             )
                         )
                         continue
                     rows.append(row)
+                if invalid_count:
+                    # Keep evidence, but do not persist a partial symbol window or
+                    # advance the checkpoint past even one corrupted bar.
+                    self.db.commit()
+                    raise ValueError(
+                        f"Daily data for {symbol} has {invalid_count} invalid bars; "
+                        "window not accepted and checkpoint unchanged"
+                    )
                 total_rows += _upsert_daily_bars(self.db, rows)
                 cp.checkpoint_value = end.isoformat()
                 self.db.commit()
