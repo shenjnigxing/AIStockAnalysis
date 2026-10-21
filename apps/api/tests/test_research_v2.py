@@ -116,3 +116,27 @@ def test_sector_summary_is_sample_only_and_flags_sparse_groups():
     )
     assert result["input_validation"] == "manual_unverified"
     assert all(v["coverage"] == "insufficient" for v in result["sector_overview"])
+
+
+def test_json_api_accepts_iso_dates_from_browser():
+    """Browser serializes date as JSON string; strict Python dates would give 422."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    day = date(2026, 10, 16)
+    result = TestClient(app).post("/api/research/v2/evaluate", json={
+        "as_of": day.isoformat(),
+        "market_regime": "neutral",
+        "items": [snapshot(day)],
+    })
+    assert result.status_code == 200, result.text
+    assert result.json()["items"][0]["status"] == "research_candidate"
+
+
+def test_json_api_rejects_missing_market_regime():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    response = TestClient(app).post("/api/research/v2/evaluate", json={
+        "as_of": "2026-10-16",
+        "items": [snapshot(date(2026, 10, 16))],
+    })
+    assert response.status_code == 422
