@@ -2,7 +2,11 @@
 from datetime import date
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_db
+from app.services.research_data_readiness import research_data_readiness
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.services.research_v2 import ENGINE_VERSION, evaluate_batch
@@ -17,6 +21,11 @@ class ResearchBatchRequest(BaseModel):
     items: list[dict[str, Any]] = Field(min_length=1, max_length=500)
 
 
+@router.get("/data-readiness")
+def get_data_readiness(db: Session = Depends(get_db)) -> dict[str, Any]:
+    return research_data_readiness(db)
+
+
 @router.get("/capabilities")
 def research_capabilities() -> dict[str, Any]:
     return {
@@ -26,7 +35,8 @@ def research_capabilities() -> dict[str, Any]:
         "can_execute_orders": False,
         "validated_alpha": False,
         "verified_point_in_time_data": False,
-        "iteration": "review_cycle_2",
+        "iteration": "review_cycle_3_data_integrity",
+        "data_readiness_endpoint": "/api/research/v2/data-readiness",
         "limitations": [
             "Current v2 score is a hypothesis, not statistically validated alpha.",
             "A point-in-time financial data integration is required before live screening.",
