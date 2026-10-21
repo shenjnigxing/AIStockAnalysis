@@ -217,3 +217,84 @@ def test_missing_vendor_columns_rejected_not_filled(monkeypatch):
     ))
     with pytest.raises(PublicQuoteSourceError):
         fetch_public_quote("etf","510300")
+
+
+def test_us_equity_and_etf_are_supported_by_source_registry_but_not_verified():
+    sources=client.get("/api/research/v3/market-data/sources").json()
+    kinds={p["kind"] for p in sources["providers"]}
+    assert {"us_equity","us_etf","okx_stock_token"}.issubset(kinds)
+    assert sources["provider_verified"] is False
+    assert client.get("/api/research/v3/market-data/quote?kind=us_equity&symbol=AAPL").status_code==404
+    assert client.get("/api/research/v3/market-data/quote?kind=us_etf&symbol=SPY").status_code==404
+    assert client.get("/api/research/v3/market-data/quote?kind=okx_stock_token&symbol=XTSLA-USDT").status_code==404
+
+
+def test_yahoo_us_bar_source_is_not_exchange_realtime_or_okx(monkeypatch):
+    from datetime import datetime, timezone
+    monkeypatch.setenv("MARKET_DATA_MODE","real")
+    bar_time=datetime(2026,10,20,15,30,tzinfo=timezone.utc)
+    class Pos:
+        def __getitem__(self, n): return {"Close":193.12}
+    class Index:
+        def __getitem__(self, n): return bar_time
+    class Iloc:
+        def __getitem__(self,n): return Pos()
+    class Frame:
+        empty=False
+        def __len__(self):return 2
+        iloc=Iloc()
+        index=Index()
+    class Ticker:
+        def __init__(self,symbol): self.symbol=symbol
+        def history(self,**kw):
+            assert kw["interval"]=="1m"
+            assert kw["auto_adjust"] is False
+            assert self.symbol in ("AAPL","SPY")
+            return Frame()
+    monkeypatch.setitem(sys.modules,"yfinance",SimpleNamespace(Ticker=Ticker))
+    stock=fetch_public_quote("us_equity","AAPL")
+    fund=fetch_public_quote("us_etf","SPY")
+    assert stock["value"]==193.12
+    assert stock["time_quality"]=="bar_timestamp"
+    assert stock["source_timestamp_utc"]==bar_time.replace(tzinfo=None)
+    assert fund["time_quality"]=="bar_timestamp"
+    assert stock["source_record"]["bar_interval"]=="1m"
+    assert stock["source_record"]["session"]=="regular_or_extended_not_individually_verified"
+
+
+def test_yahoo_missing_timezone_fails_closed(monkeypatch):
+    monkeypatch.setenv("MARKET_DATA_MODE","real")
+    class F:
+        empty=False
+        def __len__(self):return 1
+        iloc=SimpleNamespace(__getitem__=lambda self,n: {"Close":120.1})
+        index=[datetime(2026,10,20,10,30)]
+    class Ticker:
+        def __init__(self,s):pass
+        def history(self,**kwargs):return F()
+    monkeypatch.setitem(sys.modules,"yfinance",SimpleNamespace(Ticker=Ticker))
+    with pytest.raises(PublicQuoteSourceError):
+        fetch_public_quote("us_equity","MSFT")
+
+
+def test_invalid_us_and_okx_instrument_identifiers_rejected(monkeypatch):
+    _enable(monkeypatch)
+    for kind,symbol in [
+        ("us_equity","../../a"),("us_etf","SPY;evil"),
+        ("okx_stock_token","BTC-USDT"),("okx_stock_token","XTSLA-USDT?evil")
+    ]:
+        assert _refresh(kind,symbol).status_code==422
+
+
+def test_us_and_okx_are_not_cross_account_ownership(monkeypatch):
+    _enable(monkeypatch)
+    q=_refresh(kind="us_equity",symbol="AAPL")
+    assert q.status_code==200,q.text
+    row=q.json()["quote"]
+    assert row["currency"]=="USD"
+    assert row["metric"]=="bar_close"
+    assert row["research_eligible"] is False and row["can_trade"] is False
+    okx=_refresh(kind="okx_stock_token",symbol="XTSLA-USDT")
+    assert okx.status_code==200,okx.text
+    assert okx.json()["quote"]["currency"]=="USDT"
+    assert okx.json()["quote"]["product_type"]=="tokenized_stock"
