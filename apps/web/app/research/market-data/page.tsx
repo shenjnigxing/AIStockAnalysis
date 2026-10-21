@@ -50,7 +50,7 @@ export default function PublicMarketDataPage(){
       if(!symbol.trim())throw new Error("请填写已由交易所或交易平台实际支持的产品代码");
       const params=new URLSearchParams({kind,symbol:symbol.trim()});
       const response=await fetch("/api/research/v3/market-data/quote?"+params,{cache:"no-store"});
-      if(response.status===404)throw new Error("尚无本地快照；请先在本机运行下方采集命令，再查询");
+      if(response.status===404)throw new Error("尚无已采集的本地快照；请先在本机运行下方采集命令，再查询");
       if(!response.ok)throw new Error(response.status===409?"缓存一致性验证失败，数据已被阻断":"标的代码或缓存状态无效");
       setQuote(await response.json() as Quote);
     }catch(e){setError(e instanceof Error?e.message:"无法读取行情");}

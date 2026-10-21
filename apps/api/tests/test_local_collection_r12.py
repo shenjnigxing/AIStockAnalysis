@@ -88,4 +88,5 @@ def test_futures_market_route(monkeypatch,symbol,market):
 
 def test_container_default_path_is_safe():
     from app.core.config import default_database_url
-    assert default_database_url(Path('/app/app/core/config.py')) == 'sqlite:////app/data/aistock.local.sqlite3'
+    layout = Path('/app/app/core/config.py').resolve()
+    assert default_database_url(layout) == 'sqlite:///' + (layout.parents[2] / 'data/aistock.local.sqlite3').as_posix()
