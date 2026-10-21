@@ -41,7 +41,7 @@ def _refresh(kind="equity",symbol="600000",headers=HEADER):
 
 def test_public_sources_and_read_missing_quote_without_network():
     data=client.get("/api/research/v3/market-data/sources").json()
-    assert len(data["providers"]) == 5
+    assert len(data["providers"]) == 8
     assert data["research_eligible"] is False
     assert data["notifications_enabled"] is False
     assert client.get("/api/research/v3/market-data/quote?kind=equity&symbol=600000").status_code==404
