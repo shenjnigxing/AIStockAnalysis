@@ -1,4 +1,5 @@
 name: One-time R1.2 Next security upgrade
+# Retry after adapting App Router's async params/searchParams.
 on:
   push:
     branches: [feat/r12-ten-role-hardening]
