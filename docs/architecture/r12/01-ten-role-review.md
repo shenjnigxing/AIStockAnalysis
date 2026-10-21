@@ -9,7 +9,7 @@
 | 3. 数据工程师 | 缺历史 source 时间覆盖与完整行情序列；`_output` 仅判断 cache_age、部分来源只有日频/HHMMSS | P0 | 增加 source age/交易时段/数据状态诊断，避免错误鲜度标签；补回归 | 仍无授权可重演的 PIT 和交易日历 |
 | 4. 高级量化投资经理 | V3 当前只是 trend/volatility/drawdown 的实验性分数，没有样本外检验、资金容量、滑点和基准；`research_v3.py` 不支持真实资产日报 | P0 | 保留 `can_trade=false`、`validated_alpha=false`，UI 明确 experimental；增加 API contract 验收 | **不得把原型叫作正式推荐算法** |
 | 5. 多资产风控专家 | `public_quote_sources` 中国 10 年国债是收益率 %，US ETF 是 bar_close，OKX USDT/token，国内期货 contract_quote；跨资产不能比较数字/加总 | P0 | 数据诊断按 metric/unit 展示，风险声明更清晰 | FX PIT、期限结构、基差、保证金动态仍缺 |
-| 6. 安全架构师 | `main.py` 未限制用户传入的 X-Request-ID，可能出现反射/日志污染；账号凭据敏感；quote GET 不可直接推送 | P1 | 清理/长度限制 request ID，不在 CLI 输出密钥、账户数据保持禁用 | 身份认证、RBAC、HTTPS 部署仍需上线前核查 |
+| 6. 安全架构师 | `main.py` 未限制 X-Request-ID；旧 `apps/api/app/api/routes/live.py` 含未授权 `/order`、撤单及账户同步路由，构成隐式实盘能力暴露 | **P0** | 清理/长度限制 request ID；旧 live 写入/敏感读取路由只允许 `APP_ENV=test` 且模拟券商；默认开发/生产研究版均 403 | 真正上线实盘前仍需独立 RBAC、双确认、审计、券商授权 |
 | 7. 测试架构师 | R1.1 CI 先前多次被测试夹具和 DOM 重复匹配打断；pytest 未检查无密钥“晚上可测”的 CLI 路径；无跨重启 SQLite 烟测 | P0 | 添加真实进程内 CLI、离线和持久化 smoke，Windows 运行说明；保留全量 CI | 公开源实际成功率仍须在本机实测 |
 | 8. 前端设计主管 | `/research/market-data` 缺可操作的“怎样刷新”，只说管理员刷新，查询 404 用户无法自救；风险说明居多、操作层级不足 | P0 | 可复制本机刷新命令、错误态直达诊断页和明示未连接状态 | 无账户文件样例，仍不开放账单导入 |
 | 9. SRE/运维工程师 | 按 README 启动需手工多终端，`DATABASE_URL` 默认不跨机器；`MARKET_DATA_MODE` 依赖环境；日志/诊断不完善 | P0 | 同步更新 Windows PowerShell 快速启动命令、明确只绑定 127.0.0.1、给本机 CLI 自检命令 | 未实测用户本机防火墙、代理与网络 |
