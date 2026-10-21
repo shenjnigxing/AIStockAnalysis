@@ -29,12 +29,14 @@ if ($Mode -eq "web") {
     exit $LASTEXITCODE
 }
 Set-Location $ApiRoot
+$PythonExe = Join-Path $ApiRoot ".venv\Scripts\python.exe"
+if (-not (Test-Path $PythonExe)) { $PythonExe = "python" }
 if ($Mode -eq "api") {
-    python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+    & $PythonExe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
     exit $LASTEXITCODE
 }
 if ($Mode -eq "doctor") {
-    python -m app.cli.market_data doctor
+    & $PythonExe -m app.cli.market_data doctor
 } elseif ($Mode -eq "status") {
     python -m app.cli.market_data status --kind $Kind --symbol $Symbol
 } elseif ($Mode -eq "refresh") {
