@@ -189,3 +189,30 @@ def test_public_readiness_and_release_limits():
     assert body["can_generate_real_recommendations"] is False
     assert client.get("/api/research/v3/datasets/releases?limit=101").status_code==422
     assert client.get("/api/research/v3/datasets/releases/999").status_code==404
+
+
+@pytest.mark.parametrize("field,new_value",[
+    ("venue","UNKNOWN"),("currency","USD"),
+    ("volume_unit","shares"),("row_count",99),("quality_state","pit_verified"),
+])
+def test_tampered_release_metadata_cannot_pass_integrity(monkeypatch,field,new_value):
+    _stub(monkeypatch)
+    with SessionLocal() as db:
+        release=ingest_equity_or_etf_daily(
+            db,kind="equity",symbol="600000",start=START,
+            end=START+timedelta(days=2))["release"]
+        r=db.get(DatasetRelease,release["id"])
+        setattr(r,field,new_value)
+        db.commit()
+    response=client.get(f"/api/research/v3/datasets/releases/{release['id']}")
+    assert response.status_code==409,response.text
+
+
+def test_original_provider_payload_tampering_is_detected(monkeypatch):
+    _stub(monkeypatch)
+    with SessionLocal() as db:
+        rid=ingest_equity_or_etf_daily(db,kind="equity",symbol="600000",
+            start=START,end=START+timedelta(days=2))["release"]["id"]
+        db.get(DatasetRelease,rid).raw_payload_json='[{"modified":true}]'
+        db.commit()
+    assert client.get(f"/api/research/v3/datasets/releases/{rid}").status_code==409
