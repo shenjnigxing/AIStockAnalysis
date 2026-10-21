@@ -77,7 +77,8 @@ function syntheticStudy(horizon: Horizon): Study {
   return {
     as_of:"2026-10-20", horizon, source:"synthetic_demo",
     instruments:specs.map((spec,i) => ({
-      ...spec,currency:"CNY",
+      asset_class:spec.asset_class, product_type:spec.product_type,
+      symbol:spec.symbol, name:spec.name, metadata:spec.metadata, currency:"CNY" as const,
       prices:days.map((date,k)=>({
         date,close:Number((100*Math.exp(spec.trend*k + .008*Math.sin(k/11+i))).toFixed(6)),
       })),
