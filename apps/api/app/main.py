@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
 import os
+import re
 import sys
 
 from fastapi import FastAPI
@@ -37,7 +38,8 @@ app.include_router(api_router)
 
 @app.middleware("http")
 async def attach_request_id(request: Request, call_next):
-    request_id = request.headers.get("X-Request-ID", str(uuid4()))
+    incoming = request.headers.get("X-Request-ID", "")
+    request_id = incoming if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", incoming) else str(uuid4())
     set_request_id(request_id)
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
