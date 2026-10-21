@@ -6,14 +6,14 @@ import { fetchApiResult } from "../../lib/api";
 import { resolvePageState } from "../../lib/view-state";
 
 type ReplayPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     day?: string;
     source_type?: string;
     recommendation_level?: string;
     outcome?: string;
     symbol?: string;
     strategy_key?: string;
-  };
+  }>;
 };
 
 function buildReplayQuery(params: Record<string, string>) {
@@ -22,16 +22,17 @@ function buildReplayQuery(params: Record<string, string>) {
 }
 
 export default async function ReplayPage({ searchParams }: ReplayPageProps) {
+  const filters = (await searchParams) ?? {};
   const apiBase = process.env.API_BASE_URL || "http://localhost:8000";
   const daysRes = await fetchApiResult("/api/replay/days", { items: [] as string[] });
   const days = daysRes.data.items;
-  const selectedDay = searchParams?.day || days[0];
+  const selectedDay = filters.day || days[0];
   const replayQuery = buildReplayQuery({
-    source_type: searchParams?.source_type || "",
-    recommendation_level: searchParams?.recommendation_level || "",
-    outcome: searchParams?.outcome || "",
-    symbol: searchParams?.symbol || "",
-    strategy_key: searchParams?.strategy_key || ""
+    source_type: filters.source_type || "",
+    recommendation_level: filters.recommendation_level || "",
+    outcome: filters.outcome || "",
+    symbol: filters.symbol || "",
+    strategy_key: filters.strategy_key || ""
   });
   const recordsRes = selectedDay
     ? await fetchApiResult(`/api/replay/day/${selectedDay}${replayQuery}`, { items: [] as Array<Record<string, unknown>>, count: 0 })
@@ -68,8 +69,8 @@ export default async function ReplayPage({ searchParams }: ReplayPageProps) {
           {selectedDay ? (
             <p>
               当前：{selectedDay}，来源=
-              {searchParams?.source_type || "全部"}，等级={searchParams?.recommendation_level || "全部"}，结果=
-              {searchParams?.outcome || "全部"}，股票={searchParams?.symbol || "全部"}，战法={searchParams?.strategy_key || "全部"}
+              {filters.source_type || "全部"}，等级={filters.recommendation_level || "全部"}，结果=
+              {filters.outcome || "全部"}，股票={filters.symbol || "全部"}，战法={filters.strategy_key || "全部"}
             </p>
           ) : null}
           {selectedDay ? (
@@ -84,11 +85,11 @@ export default async function ReplayPage({ searchParams }: ReplayPageProps) {
               <Link href={`/replay${buildReplayQuery({ day: selectedDay, strategy_key: "platform_breakout" })}`}>战法平台突破</Link>
               <a
                 href={`${apiBase}/api/replay/export/${selectedDay}${buildReplayQuery({
-                  source_type: searchParams?.source_type || "",
-                  recommendation_level: searchParams?.recommendation_level || "",
-                  outcome: searchParams?.outcome || "",
-                  symbol: searchParams?.symbol || "",
-                  strategy_key: searchParams?.strategy_key || "",
+                  source_type: filters.source_type || "",
+                  recommendation_level: filters.recommendation_level || "",
+                  outcome: filters.outcome || "",
+                  symbol: filters.symbol || "",
+                  strategy_key: filters.strategy_key || "",
                   format: "csv"
                 })}`}
                 target="_blank"
@@ -98,11 +99,11 @@ export default async function ReplayPage({ searchParams }: ReplayPageProps) {
               </a>
               <a
                 href={`${apiBase}/api/replay/export/${selectedDay}${buildReplayQuery({
-                  source_type: searchParams?.source_type || "",
-                  recommendation_level: searchParams?.recommendation_level || "",
-                  outcome: searchParams?.outcome || "",
-                  symbol: searchParams?.symbol || "",
-                  strategy_key: searchParams?.strategy_key || "",
+                  source_type: filters.source_type || "",
+                  recommendation_level: filters.recommendation_level || "",
+                  outcome: filters.outcome || "",
+                  symbol: filters.symbol || "",
+                  strategy_key: filters.strategy_key || "",
                   format: "json"
                 })}`}
                 target="_blank"
