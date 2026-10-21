@@ -38,9 +38,9 @@ if ($Mode -eq "api") {
 if ($Mode -eq "doctor") {
     & $PythonExe -m app.cli.market_data doctor
 } elseif ($Mode -eq "status") {
-    python -m app.cli.market_data status --kind $Kind --symbol $Symbol
+    & $PythonExe -m app.cli.market_data status --kind $Kind --symbol $Symbol
 } elseif ($Mode -eq "refresh") {
     Write-Host "仅采集公开行情，不访问证券/期货/OKX 私人账户，也不生成交易指令。"
-    python -m app.cli.market_data refresh --kind $Kind --symbol $Symbol
+    & $PythonExe -m app.cli.market_data refresh --kind $Kind --symbol $Symbol
 }
 exit $LASTEXITCODE
