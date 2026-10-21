@@ -151,3 +151,30 @@ def test_source_provenance_is_never_promoted():
     assert response.status_code == 200
     assert response.json()["source_grade"] == "manual_unverified"
     assert response.json()["validated_alpha"] is False
+
+
+def test_recovery_requires_improvement_not_only_past_underperformance():
+    """Adversarial: stagnant relative loser must not outrank genuine recovery."""
+    recovering = {
+        "rel_20d_pct": 9.0, "rel_60d_pct": -5.0,
+        "acceleration_pp": 14.0, "drawdown_60d_pct": 7.0,
+    }
+    stagnant = {
+        "rel_20d_pct": -4.5, "rel_60d_pct": -13.0,
+        "acceleration_pp": 0.0, "drawdown_60d_pct": 10.0,
+    }
+    recovery_score, _, recovery_penalty, _ = score_features(recovering, "recovery")
+    stagnant_score, _, stagnant_penalty, risks = score_features(stagnant, "recovery")
+    assert recovery_score > stagnant_score + 20
+    assert stagnant_penalty > recovery_penalty
+    assert any("改善尚未确认" in text for text in risks)
+
+
+def test_recovery_penalizes_sector_that_has_already_run_up():
+    hot = {
+        "rel_20d_pct": 8.0, "rel_60d_pct": 25.0,
+        "acceleration_pp": 10.0, "drawdown_60d_pct": 0.0,
+    }
+    _, _, penalty, risks = score_features(hot, "recovery")
+    assert penalty >= 15
+    assert any("不属于低位修复" in text for text in risks)
