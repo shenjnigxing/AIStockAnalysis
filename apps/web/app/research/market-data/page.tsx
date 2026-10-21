@@ -64,6 +64,7 @@ export default function PublicMarketDataPage(){
     </header>
     <section className="md-warning" role="status"><strong>行情延迟、请求耗时与账户资产是三种不同信息</strong>
       <p>公开查询只读取本地缓存，绝不向供应商发起实时抓取；管理员刷新后才会产生快照。美股 Yahoo 分钟 K 线不是交易所逐笔实时行情；OKX 代币化产品不等于直接持有美股；账户资料未接入。</p></section>
+    <nav className="md-jumps" aria-label="快速操作"><a href="#md-quote-search">查询本地报价</a><a href="#md-refresh-guide">本机采集指引</a><a href="#md-account-sources">账户接入状态</a></nav>
     {error&&<div className="md-error" role="alert">{error}</div>}
     <section className="md-panel">
       <h2>01 / 公开行情数据源</h2>
@@ -73,7 +74,7 @@ export default function PublicMarketDataPage(){
         <span className={p.last_attempt_state==="failure"?"md-fetch-failed":""}>{p.last_attempt_state==="never"?"尚未采集":p.last_attempt_state==="failure"?"上次刷新失败（缓存不代表刷新成功）":"最近采集成功"}</span>
       </div>)}</div>}
     </section>
-    <section className="md-panel">
+    <section className="md-panel" id="md-quote-search">
       <h2>02 / 本地快照查询</h2><p>查看已保存的供应商观测值。这里没有用户券商账户登录，也不触发真实买卖。</p>
       <div className="md-form"><label>资产市场<select value={kind} onChange={e=>{const next=e.target.value;setKind(next);setSymbol(PRESETS[next]??"");setQuote(null);setError("");}}>
         {Object.keys(LABELS).map(k=><option key={k} value={k}>{LABELS[k]}</option>)}</select></label>
@@ -84,7 +85,7 @@ export default function PublicMarketDataPage(){
         <span>{STATUS[quote.freshness]??quote.freshness} · 数据来源：{quote.source_id}</span>
         <p>抓取时间（UTC）：{quote.collected_at_utc}；缓存年龄：{quote.cache_age_seconds} 秒；源端时间：{quote.source_display_time||"未提供"}。不可据此直接买卖。</p></div>}
     </section>
-    <section className="md-panel md-steps">
+    <section className="md-panel md-steps" id="md-refresh-guide">
       <h2>03 / 本机采集与测试</h2>
       <p>为防止公开网站被高频请求，页面只读已保存的报价。回家后先运行以下命令，刷新完成再点上面的“查看本地快照”。无需输入任何证券账户或欧易密码。</p>
       <div className="md-command"><strong>Windows · 仓库根目录 PowerShell</strong>
@@ -95,7 +96,7 @@ export default function PublicMarketDataPage(){
       <p>遇到 404 表示从未成功抓取；429 表示冷却中；502 表示公共数据源失败或超时。不要把失败理解为股价为零，亦不可使用旧价格执行买卖。</p>
       <Link href="/research/data-lineage">查看 R1 数据版本与来源完整性 →</Link>
     </section>
-    <section className="md-panel">
+    <section className="md-panel" id="md-account-sources">
       <h2>04 / 账户接入边界</h2><p>账户持仓与公开行情来源不同。尚未验证个人东方财富账户的官方只读 API，当前不采集你的个人登录凭据和账户号码，也不声称任何推荐模型已具备样本外超额收益。</p>
       <div className="md-accounts">{accounts.map(a=><div key={a.provider}><strong>{a.display_name}</strong>
         <span>尚未连接 · 只读账单格式待核验</span>
