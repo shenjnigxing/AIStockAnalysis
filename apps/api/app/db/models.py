@@ -512,3 +512,38 @@ class DatasetPriceObservation(Base):
     close: Mapped[float] = mapped_column(Float)
     volume: Mapped[float] = mapped_column(Float)
     amount: Mapped[float] = mapped_column(Float)
+
+
+# R1.1 operational quote observations; separate from immutable research releases.
+# This feed is provider-reported, never PIT or trade-eligible.
+class PublicQuoteSnapshot(Base):
+    __tablename__ = "public_quote_snapshots"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    symbol: Mapped[str] = mapped_column(String(32), index=True)
+    source_id: Mapped[str] = mapped_column(String(96))
+    asset_class: Mapped[str] = mapped_column(String(32))
+    product_type: Mapped[str] = mapped_column(String(32))
+    metric: Mapped[str] = mapped_column(String(32))
+    value: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str] = mapped_column(String(32))
+    currency: Mapped[str] = mapped_column(String(8))
+    collected_at_utc: Mapped[datetime] = mapped_column(DateTime, index=True)
+    source_display_time: Mapped[str] = mapped_column(String(96), default="")
+    source_timestamp_utc: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    time_quality: Mapped[str] = mapped_column(String(32))
+    request_duration_ms: Mapped[int] = mapped_column(Integer)
+    source_record_sha256: Mapped[str] = mapped_column(String(64))
+    source_record_json: Mapped[str] = mapped_column(Text)
+    observation_sha256: Mapped[str] = mapped_column(String(64))
+
+
+class PublicQuoteFetchAttempt(Base):
+    __tablename__ = "public_quote_fetch_attempts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    symbol: Mapped[str] = mapped_column(String(32), index=True)
+    attempted_at_utc: Mapped[datetime] = mapped_column(DateTime, index=True)
+    duration_ms: Mapped[int] = mapped_column(Integer)
+    state: Mapped[str] = mapped_column(String(24))
+    error_code: Mapped[str] = mapped_column(String(64), default="")
