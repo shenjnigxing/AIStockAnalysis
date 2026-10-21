@@ -1,5 +1,10 @@
 import os
+from pathlib import Path
 from dataclasses import dataclass
+
+# Stable cross-platform local development location, independent of cwd.
+_PROJECT_ROOT = Path(__file__).resolve().parents[4]
+_DEFAULT_DB = "sqlite:///" + (_PROJECT_ROOT / "data" / "aistock.local.sqlite3").as_posix()
 
 
 @dataclass(frozen=True)
@@ -14,7 +19,7 @@ class Settings:
     redis_port: int = int(os.getenv("REDIS_PORT", "6379"))
     database_url: str = os.getenv(
         "DATABASE_URL",
-        "sqlite:///E:/workstation/StockSystem/data/duckdb/stock_assistant.db",
+        _DEFAULT_DB,
     )
     market_data_provider: str = os.getenv("MARKET_DATA_PROVIDER", "akshare")
     broker_provider: str = os.getenv("BROKER_PROVIDER", "mock")
