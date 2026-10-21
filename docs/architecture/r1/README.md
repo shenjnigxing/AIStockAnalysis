@@ -8,6 +8,7 @@
 - [02 Provider 和质量校验](02-provider-and-validation.md)：受限 A 股与 ETF 接入，OHLCV、日期、整窗拒绝规则。
 - [03 安全/测试/发布](03-deployment-and-release-gates.md)：鉴权、数据故障、版本一致性测试和发布条件。
 - [04 运营操作手册](04-operations.md)：服务器管理员采集、只读查询、故障响应、迁移提醒。
+- [05 实施与用户批判](05-qa-and-user-review.md)：真实 CI、截图 QA、失败修复、上线阻断。
 
 实现对应：
 
