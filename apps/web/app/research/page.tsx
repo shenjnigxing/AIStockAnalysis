@@ -47,6 +47,7 @@ export default async function ResearchWorkspace() {
           <p>面向 A 股中长线的结构化研究。先识别市场环境，再研究行业轮动、企业质量与估值位置。每条判断都应有出处和失效条件。</p>
           <div className="research-hero-actions">
             <Link href="/data-center" className="research-primary">查看数据状态 <span>↗</span></Link>
+            <Link href="/research/assets" className="research-outline">多资产研究 V3 →</Link>
             <Link href="/research/sectors" className="research-outline">行业轮动实验 →</Link>
             <Link href="/research/lab" className="research-outline">单股因子实验室</Link>
           </div>
