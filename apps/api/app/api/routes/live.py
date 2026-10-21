@@ -26,7 +26,7 @@ def _require_test_only_live() -> None:
     )
 
 
-@router.post("/order/preview")
+@router.post("/order/preview", dependencies=[Depends(_require_test_only_live)])
 def live_preview(payload: dict, db: Session = Depends(get_db)) -> dict:
     row = LiveTradingService(db).preview(
         symbol=payload["symbol"],
@@ -91,11 +91,11 @@ def live_sync(db: Session = Depends(get_db)) -> dict:
     return LiveTradingService(db).sync_account()
 
 
-@router.get("/broker/status")
+@router.get("/broker/status", dependencies=[Depends(_require_test_only_live)])
 def live_broker_status(db: Session = Depends(get_db)) -> dict:
     return LiveTradingService(db).broker_status()
 
 
-@router.get("/broker/capabilities")
+@router.get("/broker/capabilities", dependencies=[Depends(_require_test_only_live)])
 def live_broker_capabilities(provider: str | None = None, db: Session = Depends(get_db)) -> dict:
     return LiveTradingService(db).broker_capabilities(provider=provider)
