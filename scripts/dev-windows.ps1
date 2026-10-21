@@ -22,6 +22,9 @@ $ServicePaths = @(Get-ChildItem -LiteralPath $ServicesRoot -Directory | ForEach-
 $AllPaths = @($ApiRoot) + $ServicePaths
 $env:PYTHONPATH = ($AllPaths -join [IO.Path]::PathSeparator)
 if (-not $env:MARKET_DATA_MODE) { $env:MARKET_DATA_MODE = "real" }
+# Python stdout on some Windows consoles is not UTF-8 and cannot print Chinese JSON.
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
 
 if ($Mode -eq "web") {
     Set-Location $WebRoot
