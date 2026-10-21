@@ -58,7 +58,14 @@ test("explicit demo displays provenance, factor evidence, and model change", asy
   await expect(page.getByText("DEMO · 合成演示数据")).toBeVisible();
   await page.screenshot({path:"test-results/sector-research-desktop.png",fullPage:true});
   await expect(page.getByRole("heading", {name:"行业研究排序"})).toBeVisible();
-  await expect(page.getByRole("columnheader", {name:"研究强度"})).toBeInViewport({ratio:1});
+  const scoreUnclipped = await page.getByRole("columnheader", {name:"研究强度"}).evaluate((element) => {
+    const clip = element.closest(".sector-scroll");
+    if (!clip) return false;
+    const scoreBox = element.getBoundingClientRect();
+    const containerBox = clip.getBoundingClientRect();
+    return scoreBox.left >= containerBox.left - 1 && scoreBox.right <= containerBox.right + 1;
+  });
+  expect(scoreUnclipped).toBe(true);
   await expect(page.getByText("20日超额")).toBeVisible();
   await expect(page.getByText("输入 SHA256：")).toBeVisible();
   expect(submitted[0].source).toBe("synthetic_demo");
