@@ -27,6 +27,9 @@ VALID_PATTERNS = {
     "sge_gold": r"^(Au99\.99|Au99\.95|Ag99\.99)$",
     "futures": r"^[A-Z]{1,2}[0-9]{3,4}$",
     "treasury_10y": r"^CN10Y$",
+    "us_equity": r"^[A-Z]{1,5}(?:[.-][A-Z])?$",
+    "us_etf": r"^[A-Z]{1,5}$",
+    "okx_stock_token": r"^X[A-Z]{1,10}-USDT$",
 }
 
 
@@ -153,7 +156,7 @@ def _output(row: PublicQuoteSnapshot, now: datetime) -> dict[str, Any]:
         "stale_source" if source_age is not None and source_age > max(threshold, 300) else
         "time_unverified" if row.time_quality == "time_unverified" else
         "daily_observation" if row.time_quality == "daily_observation" else
-        "provider_timestamped"
+        "bar_timestamped" if row.time_quality == "bar_timestamp" else "provider_timestamped"
     )
     return {
         "id": row.id, "kind": row.kind, "symbol": row.symbol,
@@ -226,7 +229,7 @@ def refresh_quote(db: Session, *, kind: str, symbol: str) -> dict[str, Any]:
                                           or source_at > now + timedelta(minutes=2)):
                 raise QuoteUnavailable("invalid_source_time")
             quality = data["time_quality"]
-            if quality not in ("time_unverified", "daily_observation", "provider_update_timestamp"):
+            if quality not in ("time_unverified", "daily_observation", "provider_update_timestamp", "bar_timestamp"):
                 raise QuoteUnavailable("unknown_timestamp_quality")
             source_text = str(data.get("source_display_time", ""))[:96]
             record = _canonical(data["source_record"])
