@@ -9,7 +9,7 @@ from app.services.public_quote_cache import (
     QuoteBusy, QuoteUnavailable, QuoteIntegrityError, cached_quote, quote_status, refresh_quote,
 )
 router = APIRouter()
-QuoteKind = Literal["equity","etf","sge_gold","futures","treasury_10y"]
+QuoteKind = Literal["equity","etf","sge_gold","futures","treasury_10y","us_equity","us_etf","okx_stock_token"]
 
 
 class RefreshRequest(BaseModel):
