@@ -29,6 +29,8 @@ test("R1 mobile shows provenance gate without horizontal overflow",async({page})
   await page.goto("/research/data-lineage");
   await expect(page.getByRole("heading",{name:"数据发布与来源审查"})).toBeVisible();
   await expect(page.getByText("真实推荐仍被阻断")).toBeVisible();
+  await expect(page.getByText("暂无供应商数据发布记录")).toBeVisible();
+  await expect(page.getByText("历史数据的披露、发布与更正时点")).toBeVisible();
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
   expect(overflow).toBe(false);
   await page.screenshot({path:"test-results/r1-empty-lineage-mobile.png",fullPage:true});
