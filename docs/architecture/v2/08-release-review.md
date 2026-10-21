@@ -20,7 +20,7 @@
 
 ## 3. 可验证证据
 - CI workflow：`https://github.com/shenjnigxing/AIStockAnalysis/actions/workflows/research-v2.yml`。
-- **已观测**：Actions run #101 (id 39529645066) 的 backend/frontend/browser-smoke 均成功；集成作业等待最终完成时不可声称绿色。
+- **已观测**：Actions run #101（39529645066）和本轮算法加门槛后的 run #111（39529966600）均完成全部四个 jobs：完整后端回归、TypeScript/Next build、Chromium 浏览器 smoke、真实 FastAPI + Next.js 集成测试，**四项均成功**。
 - 一轮真实浏览器截图：http 使用 Playwright Chromium 的 1280px/375px，已目视核对首屏状态及结果卡；初版关键评分列曾被隐藏，CSS 已纠正。
 - 屏幕截图与 trace 通过 GitHub Actions artifacts 保存 14 天，CI 通过不等于全部业务场景的视觉验收。
 
@@ -33,3 +33,22 @@
 ## 5. 下一轮优先序
 P0 数据血缘（逐行源/复权/历史交易日、行业归属） -> P1 行业研究真实 Pipeline -> P1 可信 OOS 模型注册/比较/成本 -> P2 基于证据的个股分析 -> 风控人工确认。
 当前 PR 必须保留 Draft、禁止自动合并，满足上述门槛后再审查是否提升为生产级研究产品。
+
+## 6. 最终真实集成截图后的三次审视
+
+第一版：桌面表格最重要的评分列被横向滚动隐藏且卡片被拉高。修复布局、并由真实截图确认评分列已直接可见。
+
+第二版：初次浏览器列可见性断言误把纵向未滚动当横向裁切；改成比较表头与内部滚动容器左右边界，CI 通过。这一改进是测试代码精确性提升，不应当伪装成算法收益提升。
+
+第三版：真 FastAPI 合成实验榜单意外把“持续弱势、未改善”行业打到接近高分，且将仅由价格数据得到的因子叫作“低关注”。新增修复门槛（加速度/近20日弱势）及长期过热惩罚，因子改名为“前期相对弱势”；新测试阻止回归。run #111 全部四类测试通过，真实合成榜单区分改善与未改善。**该结果依旧是合成样本、绝非回测证据**。
+
+最终证据：
+- CI：https://github.com/shenjnigxing/AIStockAnalysis/actions/runs/39529966600
+- 真后端渲染截图（14天附件）：https://github.com/shenjnigxing/AIStockAnalysis/actions/runs/39529966600
+- 研究页面：`apps/web/app/research/sectors/page.tsx`
+- API对抗测试：`apps/api/tests/test_sector_rotation_v2.py`
+- 真实端到端：`tests/e2e/sector-research.integration.spec.ts`
+
+## 7. 本轮最后的否决结论
+
+这是一版结构清晰、输入严格、有可验证算法实验和专业视觉层级的 **Research Preview**，不能称为实际“高级荐股算法已完成”。未验证的市场数据、OOS 绩效、历史证券行业归属和成本，是比加更多 UI 页面更紧迫的 P0。若下轮不先补 PIT 数据，持续加算法将只是堆叠伪精度。
