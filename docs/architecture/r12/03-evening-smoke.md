@@ -1,12 +1,12 @@
 # R1.2 晚间 Windows 验收操作手册（用户可逐步照做）
 
-> 分支 `feat/r12-ten-role-hardening`，需要 **Python 3.11+、Node.js 20+、PowerShell 5.1+**。运行程序时不会登录东方财富/期货/OKX 账户。**不构成真实买入推荐，不要据此下单。**
+> 分支 `feat/windows-collection-review-r12`，需要 **Python 3.11+、Node.js 20+、PowerShell 5.1+**。运行程序时不会登录东方财富/期货/OKX 账户。**不构成真实买入推荐，不要据此下单。**
 
 ## A. 获取分支（仓库根目录）
 ```powershell
 git fetch origin
-git switch feat/r12-ten-role-hardening
-git pull --ff-only origin feat/r12-ten-role-hardening
+git switch feat/windows-collection-review-r12
+git pull --ff-only origin feat/windows-collection-review-r12
 ```
 如本地有未提交的代码修改，请**先** `git status --short` 检查，不能直接 reset/checkout 强制覆盖。可 `git stash push -u -m 'backup before r12 smoke'` 备份后再切换。
 
@@ -14,7 +14,7 @@ git pull --ff-only origin feat/r12-ten-role-hardening
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 ```
-脚本创建 `apps/api/.venv`，安装 `apps/api/requirements.txt`，在 `apps/web` 运行 `npm ci`，然后执行无网络 doctor。不会修改你原有 `DATABASE_URL`，不会运行实盘。
+脚本创建 `根目录 `.venv``，安装 `apps/api/requirements.txt`，在 `apps/web` 运行 `npm ci`，然后执行无网络 doctor。不会修改你原有 `DATABASE_URL`，不会运行实盘。
 
 ## C. 启动软件（打开两个新的 PowerShell）
 终端 1：

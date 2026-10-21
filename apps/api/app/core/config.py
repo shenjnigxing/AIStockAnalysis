@@ -1,10 +1,16 @@
 import os
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
-# Stable cross-platform local development location, independent of cwd.
-_PROJECT_ROOT = Path(__file__).resolve().parents[4]
-_DEFAULT_DB = "sqlite:///" + (_PROJECT_ROOT / "data" / "aistock.local.sqlite3").as_posix()
+
+def default_database_url(config_file: Path = Path(__file__)) -> str:
+    api_root = config_file.resolve().parent.parent.parent
+    # Source tree is <repo>/apps/api; container layout is /app.
+    root = api_root.parent.parent if api_root.name == "api" and api_root.parent.name == "apps" else api_root
+    return "sqlite:///" + (root / "data/aistock.local.sqlite3").as_posix()
+
+
+_DEFAULT_DB = default_database_url().removeprefix("sqlite:///")
 
 
 @dataclass(frozen=True)
@@ -17,10 +23,7 @@ class Settings:
     postgres_port: int = int(os.getenv("POSTGRES_PORT", "5432"))
     redis_host: str = os.getenv("REDIS_HOST", "redis")
     redis_port: int = int(os.getenv("REDIS_PORT", "6379"))
-    database_url: str = os.getenv(
-        "DATABASE_URL",
-        _DEFAULT_DB,
-    )
+    database_url: str = os.getenv("DATABASE_URL") or default_database_url()
     market_data_provider: str = os.getenv("MARKET_DATA_PROVIDER", "akshare")
     broker_provider: str = os.getenv("BROKER_PROVIDER", "mock")
     llm_provider: str = os.getenv("LLM_PROVIDER", "mock")

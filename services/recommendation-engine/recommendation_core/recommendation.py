@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
-from app.db.models import DailyBar, RecommendationResult, RecommendationRun, ScreenerCandidate, StrategyDefinition, StrategyRun, StrategySignal, RealtimeQuote
+from app.db.models import DailyBar, RecommendationResult, RecommendationRun, ScreenerRun, ScreenerCandidate, StrategyDefinition, StrategyRun, StrategySignal, RealtimeQuote
 from app.services.audit import write_audit
 from app.services.llm_explainer import get_llm_explainer
 from app.services.replay_link import append_replay_record
@@ -72,7 +72,7 @@ class RecommendationService:
         if not rows:
             return [s.strategy_key for s in self.registry.list_strategies()]
         keys = [row.strategy_key for row in rows if row.enabled]
-        return keys if keys else [s.strategy_key for s in self.registry.list_strategies()]
+        return keys
 
     def _latest_quote_by_symbol(self, symbols: list[str]) -> dict[str, RealtimeQuote]:
         if not symbols:
@@ -139,9 +139,12 @@ class RecommendationService:
         llm_name = llm.provider_name if llm else "disabled"
         llm_degraded_count = 0
 
+        latest_screener_run = self.db.scalar(select(ScreenerRun).order_by(desc(ScreenerRun.id)).limit(1))
         candidates = list(
             self.db.scalars(
-                select(ScreenerCandidate).order_by(ScreenerCandidate.screener_run_id.desc(), ScreenerCandidate.rank_no).limit(200)
+                select(ScreenerCandidate).where(
+                    ScreenerCandidate.screener_run_id == (latest_screener_run.id if latest_screener_run else -1)
+                ).order_by(ScreenerCandidate.rank_no).limit(200)
             ).all()
         )
         if not candidates:
@@ -184,7 +187,7 @@ class RecommendationService:
                 "quote": quote_context,
                 "daily_bars": bars_by_symbol.get(symbol, []),
             }
-            outputs = self.registry.evaluate(symbol=symbol, strategy_keys=enabled_keys, context=context)
+            outputs = self.registry.evaluate(symbol=symbol, strategy_keys=enabled_keys, context=context) if enabled_keys else []
             for output in outputs:
                 row = StrategySignal(
                     strategy_run_id=strategy_run.id,
@@ -237,13 +240,13 @@ class RecommendationService:
                     hit_strategies=hit_keys,
                     risk_tags=total_risk_tags,
                 )
-                llm_adj = llm_result.adjustment
-                llm_explanation = llm_result.explanation
+                # LLM output is commentary only; it cannot change a numeric signal.
+                llm_explanation = "[解释不参与评分] " + llm_result.explanation
                 llm_counter_args = llm_result.counter_arguments
                 if llm_result.degraded:
                     llm_degraded_count += 1
 
-            total = round(_clip(quant_score - risk_score + llm_adj, 0.0, 100.0), 2)
+            total = round(_clip(quant_score - risk_score, 0.0, 100.0), 2)
             level = _to_level(total)
 
             reasons = [

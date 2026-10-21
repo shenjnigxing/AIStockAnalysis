@@ -50,7 +50,7 @@ export default function PublicMarketDataPage(){
       if(!symbol.trim())throw new Error("请填写已由交易所或交易平台实际支持的产品代码");
       const params=new URLSearchParams({kind,symbol:symbol.trim()});
       const response=await fetch("/api/research/v3/market-data/quote?"+params,{cache:"no-store"});
-      if(response.status===404)throw new Error("尚无已采集的本地快照；必须由服务器管理员受控刷新");
+      if(response.status===404)throw new Error("尚无本地快照；请先在本机运行下方采集命令，再查询");
       if(!response.ok)throw new Error(response.status===409?"缓存一致性验证失败，数据已被阻断":"标的代码或缓存状态无效");
       setQuote(await response.json() as Quote);
     }catch(e){setError(e instanceof Error?e.message:"无法读取行情");}
@@ -76,6 +76,11 @@ export default function PublicMarketDataPage(){
     </section>
     <section className="md-panel" id="md-quote-search">
       <h2>02 / 本地快照查询</h2><p>查看已保存的供应商观测值。这里没有用户券商账户登录，也不触发真实买卖。</p>
+      <details><summary>首次使用：采集本地行情</summary>
+        <p>在项目根目录的 PowerShell 执行以下命令，完成后点击“查看本地快照”。持续采集可修改观察清单。</p>
+        <pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>powershell -ExecutionPolicy Bypass -File infra/scripts/collect_quotes.ps1</pre>
+        <p>观察清单：infra/scripts/quotes-watchlist.example.json；持续运行参数：-Interval 60 -Cycles 60。源不可用时保留旧缓存并报错。</p>
+      </details>
       <div className="md-form"><label>资产市场<select value={kind} onChange={e=>{const next=e.target.value;setKind(next);setSymbol(PRESETS[next]??"");setQuote(null);setError("");}}>
         {Object.keys(LABELS).map(k=><option key={k} value={k}>{LABELS[k]}</option>)}</select></label>
         <label>标的代码<input value={symbol} onChange={e=>setSymbol(e.target.value)} maxLength={32} placeholder="输入实际交易品种代码"/></label>

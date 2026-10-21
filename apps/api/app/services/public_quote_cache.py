@@ -131,12 +131,18 @@ def _verify(row: PublicQuoteSnapshot) -> None:
         raise QuoteIntegrityError("Quote source identity changed")
     if row.metric != spec["metric"] or row.unit != spec["unit"] or row.currency != spec["currency"]:
         raise QuoteIntegrityError("Quote metric or units changed")
+    timestamped = row.time_quality in ("provider_update_timestamp", "bar_timestamp")
+    if timestamped != (row.source_timestamp_utc is not None):
+        raise QuoteIntegrityError("Quote timestamp quality is inconsistent")
+    if row.time_quality not in ("provider_update_timestamp", "bar_timestamp", "daily_observation", "time_unverified"):
+        raise QuoteIntegrityError("Unknown quote time quality")
     if _sha(row.source_record_json) != row.source_record_sha256:
         raise QuoteIntegrityError("Provider record content changed")
     payload = {
         "kind": row.kind, "symbol": row.symbol, "source_id": row.source_id,
         "metric": row.metric, "unit": row.unit, "currency": row.currency,
         "value": row.value, "source_display_time": row.source_display_time,
+        "time_quality": row.time_quality, "collected_at_utc": row.collected_at_utc.isoformat(),
         "source_timestamp_utc": row.source_timestamp_utc.isoformat() if row.source_timestamp_utc else None,
         "source_record_sha256": row.source_record_sha256,
     }
@@ -241,6 +247,9 @@ def refresh_quote(db: Session, *, kind: str, symbol: str) -> dict[str, Any]:
             quality = data["time_quality"]
             if quality not in ("time_unverified", "daily_observation", "provider_update_timestamp", "bar_timestamp"):
                 raise QuoteUnavailable("unknown_timestamp_quality")
+            if (quality in ("provider_update_timestamp", "bar_timestamp")) != (source_at is not None):
+                raise QuoteUnavailable("inconsistent_timestamp_quality")
+            collected_at = _now()
             source_text = str(data.get("source_display_time", ""))[:96]
             record = _canonical(data["source_record"])
             if len(record.encode("utf-8")) > 32_000:
@@ -250,6 +259,7 @@ def refresh_quote(db: Session, *, kind: str, symbol: str) -> dict[str, Any]:
                 "kind": kind, "symbol": symbol, "source_id": spec["source_id"],
                 "metric": spec["metric"], "unit": spec["unit"], "currency": spec["currency"],
                 "value": value, "source_display_time": source_text,
+                "time_quality": quality, "collected_at_utc": collected_at.isoformat(),
                 "source_timestamp_utc": source_at.isoformat() if source_at else None,
                 "source_record_sha256": source_hash,
             }
@@ -258,7 +268,7 @@ def refresh_quote(db: Session, *, kind: str, symbol: str) -> dict[str, Any]:
                 kind=kind, symbol=symbol, source_id=spec["source_id"],
                 asset_class=spec["asset_class"], product_type=spec["product_type"],
                 metric=spec["metric"], value=value, unit=spec["unit"],
-                currency=spec["currency"], collected_at_utc=_now(),
+                currency=spec["currency"], collected_at_utc=collected_at,
                 source_display_time=source_text, source_timestamp_utc=source_at,
                 time_quality=quality, request_duration_ms=duration,
                 source_record_sha256=source_hash, source_record_json=record,

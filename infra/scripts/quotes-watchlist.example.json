@@ -1,0 +1,5 @@
+[
+  {"kind": "equity", "symbol": "600000"},
+  {"kind": "us_equity", "symbol": "AAPL"},
+  {"kind": "us_etf", "symbol": "QQQ"}
+]

@@ -1,7 +1,7 @@
 name: R1.2 Ten-Role Hardening & Home Acceptance
 on:
   push:
-    branches: [feat/r12-ten-role-hardening]
+    branches: [feat/r12-ten-role-hardening, feat/windows-collection-review-r12]
   pull_request:
     paths:
       - "apps/api/**"
@@ -11,37 +11,8 @@ on:
       - "tests/e2e/r12-home.spec.ts"
       - ".github/workflows/r12-hardening.yml"
 permissions:
-  contents: write
+  contents: read
 jobs:
-  security-lockfile:
-    if: github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: feat/r12-ten-role-hardening
-          persist-credentials: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Upgrade vulnerable transitive versions without Next 16
-        working-directory: apps/web
-        run: |
-          npm ci
-          npm pkg set 'overrides.nanoid=3.3.20' 'overrides.postcss=8.5.25' 'overrides.source-map-js=1.2.2'
-          npm install
-          npx tsc --noEmit
-          npm run build
-          npm audit --omit=dev --audit-level=high
-      - name: Publish only lockfile changes verified by build and audit
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/web/package.json apps/web/package-lock.json
-          if ! git diff --cached --quiet; then
-            git commit -m "security(r12): lock audited safe versions of transitive packages"
-            git push origin HEAD:feat/r12-ten-role-hardening
-          fi
   backend:
     runs-on: ubuntu-latest
     env:
@@ -73,6 +44,8 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
+        working-directory: apps/web
+      - run: npm audit --omit=dev --audit-level=high
         working-directory: apps/web
       - run: npx tsc --noEmit
         working-directory: apps/web

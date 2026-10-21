@@ -97,10 +97,9 @@ def test_failed_refresh_does_not_replace_prior_snapshot(monkeypatch):
     first=_refresh().json()["quote"]["id"]
     with SessionLocal() as db:
         old=db.get(PublicQuoteSnapshot,first)
-        old.collected_at_utc -= timedelta(seconds=600)
-        attempt=db.scalar(select(PublicQuoteFetchAttempt))
-        attempt.attempted_at_utc -= timedelta(seconds=600)
-        db.commit()
+        later=old.collected_at_utc + timedelta(seconds=600)
+    # Advance the clock instead of modifying authenticated cache metadata.
+    monkeypatch.setattr(public_quote_cache,"_now",lambda: later)
     monkeypatch.setattr(public_quote_cache,"fetch_supervised",
                         lambda k,s: (_ for _ in ()).throw(QuoteUnavailable("timeout")))
     assert _refresh().status_code==502

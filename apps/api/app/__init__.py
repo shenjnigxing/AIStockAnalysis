@@ -7,7 +7,8 @@ from pathlib import Path
 def _bootstrap_repo_packages() -> None:
     # Allow the API composition layer (apps/api) to import extracted domain modules
     # stored in top-level services/* and packages/* directories.
-    repo_root = Path(__file__).resolve().parents[3]
+    api_root = Path(__file__).resolve().parent.parent
+    repo_root = api_root.parent.parent if api_root.name == "api" and api_root.parent.name == "apps" else api_root
     module_roots = [
         repo_root / "services" / "data-ingest",
         repo_root / "services" / "screener",
