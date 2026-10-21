@@ -50,3 +50,22 @@
 .research-footer-note{color:#9aabba;font-size:11px;margin-top:30px;line-height:1.8}
 @media(max-width:1150px){.research-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.research-hero{grid-template-columns:1fr}.research-focus-panel{max-width:none}.research-content-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.research-page{padding:22px 14px 45px}.research-hero{padding:27px 21px;gap:20px}.research-section-note{display:none}.research-metric-grid{gap:9px}.research-metric{padding:16px 13px}.research-metric strong{font-size:20px}.research-surface{padding:0 14px 14px}}
+
+
+/* Research data trust panel: surfaced above any candidate list. */
+.research-critical-text{font-size:19px!important;color:#ad513c!important;letter-spacing:0!important}
+.research-data-panel{background:#fff;border:1px solid #e0e9ef;border-radius:13px;margin-top:16px;padding:22px;box-shadow:0 4px 12px rgba(30,50,75,.035)}
+.research-data-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+.research-data-heading>div{display:flex;gap:11px;align-items:center}
+.research-data-heading h2{margin:0;color:#2a4159;font-family:Inter,"PingFang SC",sans-serif;font-size:17px}
+.research-data-state{font-size:11px;font-weight:700;color:#9f542f;background:#fff5e9;border:1px solid #f4dcc5;padding:8px 11px;border-radius:8px}
+.research-data-detail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:15px}
+.research-data-detail>div{min-width:0;display:flex;flex-direction:column;gap:7px;background:#f5f8fa;border-radius:8px;padding:13px}
+.research-data-detail span{font-size:10px;color:#8298a8}
+.research-data-detail strong{color:#345168;font-size:13px;overflow-wrap:anywhere}
+.research-data-explanation{font-size:11px;line-height:1.9;color:#758da0;background:#f8fafb;padding:12px;border-radius:7px;margin:10px 0}
+.research-audit-details{font-size:11px;color:#526c82;margin:12px 0 17px}
+.research-audit-details summary{cursor:pointer;font-weight:700;padding:6px 0}
+.research-audit-details li{margin:8px 0;line-height:1.65}
+@media(max-width:1024px){.research-data-detail{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.research-data-panel{padding:15px}.research-data-detail{gap:7px}.research-data-detail>div{padding:11px}.research-data-heading{align-items:flex-start;flex-direction:column}.research-data-state{font-size:10px}}
