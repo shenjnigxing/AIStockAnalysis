@@ -161,7 +161,7 @@ def test_etf_adapter_fixed_method_and_raw_table_capture(monkeypatch):
           "最高":11,"最低":9,"收盘":10.5,"成交量":500,"成交额":5200}]
     class MiniTable:
         empty=False
-        columns=columns
+        columns=["日期","股票代码","开盘","最高","最低","收盘","成交量","成交额"]
         def iterrows(self):
             for i,v in enumerate(raw):
                 yield i,v
