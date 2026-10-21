@@ -9,8 +9,15 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     throw "找不到 npm。请先安装 Node.js 20+。"
 }
+Write-Host "Prepare isolated Python virtual environment"
+$VenvRoot = Join-Path $Root "apps\api\.venv"
+$PythonExe = Join-Path $VenvRoot "Scripts\python.exe"
+if (-not (Test-Path $PythonExe)) {
+    python -m venv $VenvRoot
+    if ($LASTEXITCODE -ne 0) { throw "创建 Python 虚拟环境失败" }
+}
 Write-Host "Install Python API dependencies"
-python -m pip install -r (Join-Path $Root "apps\api\requirements.txt")
+& $PythonExe -m pip install -r (Join-Path $Root "apps\api\requirements.txt")
 if ($LASTEXITCODE -ne 0) { throw "Python dependencies installation failed" }
 
 Write-Host "Install frontend dependencies"
