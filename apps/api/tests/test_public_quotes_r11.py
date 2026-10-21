@@ -264,10 +264,14 @@ def test_yahoo_us_bar_source_is_not_exchange_realtime_or_okx(monkeypatch):
 
 def test_yahoo_missing_timezone_fails_closed(monkeypatch):
     monkeypatch.setenv("MARKET_DATA_MODE","real")
+    class CloseRow:
+        def __getitem__(self,k): return 120.1
+    class PositionIndexer:
+        def __getitem__(self,k): return CloseRow()
     class F:
         empty=False
         def __len__(self):return 1
-        iloc=SimpleNamespace(__getitem__=lambda self,n: {"Close":120.1})
+        iloc=PositionIndexer()
         index=[datetime(2026,10,20,10,30)]
     class Ticker:
         def __init__(self,s):pass
