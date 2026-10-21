@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.config import settings
 from app.services.live_trading import LiveTradingService
 
 router = APIRouter()
@@ -16,7 +17,8 @@ def _require_test_only_live() -> None:
     there is no reviewed authentication/approval/outbox in the legacy routes.
     """
     if (os.getenv("APP_ENV", "dev").lower() == "test"
-            and os.getenv("BROKER_PROVIDER", "mock").lower() == "mock"):
+            and os.getenv("BROKER_PROVIDER", "mock").lower() == "mock"
+            and settings.broker_provider.lower() == "mock"):
         return
     raise HTTPException(
         status_code=403,
