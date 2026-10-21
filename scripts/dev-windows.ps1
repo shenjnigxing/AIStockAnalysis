@@ -28,7 +28,8 @@ $env:PYTHONIOENCODING = "utf-8"
 
 if ($Mode -eq "web") {
     Set-Location $WebRoot
-    npm run dev
+    # Developer web server must not listen on public interfaces.
+    npm run dev -- -H 127.0.0.1
     exit $LASTEXITCODE
 }
 Set-Location $ApiRoot
