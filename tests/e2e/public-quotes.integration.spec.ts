@@ -11,7 +11,7 @@ test("R1.1 source catalog + three accounts are separate and unconnected",async({
   await expect(page.getByText(/尚未连接 · 只读账单格式待核验/).first()).toBeVisible();
   await page.screenshot({path:"test-results/r11-source-catalog-desktop.png",fullPage:true});
   await page.getByRole("button",{name:"查看本地快照"}).click();
-  await expect(page.getByRole("alert")).toContainText("尚无已采集的本地快照");
+  await expect(page.locator(".md-error")).toContainText("尚无已采集的本地快照");
 });
 
 test("R1.1 public data never triggers remote network on normal GET",async({request})=>{
