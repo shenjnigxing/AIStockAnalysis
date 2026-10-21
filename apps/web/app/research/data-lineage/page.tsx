@@ -17,6 +17,12 @@ type Readiness = {
   can_generate_real_recommendations:boolean; data_state:string; missing:string[];
 };
 type Detail = {release:Release; integrity:string; observations:Array<{date:string;close:number}>};
+const GATE_NAMES:Record<string,string>={
+  "Historical as-of publication and revision history":"历史数据的披露、发布与更正时点",
+  "Official trading-calendar and corporate-action adjustments":"交易所日历、复权与公司行为",
+  "Historical listing/ST/delisting/sector membership":"历史上市、ST、退市及行业成分",
+  "Provider data licensing verification and OOS model validation":"数据源授权核验与样本外模型验证",
+};
 
 export default function DataLineagePage(){
   const [status,setStatus]=useState<Readiness|null>(null);
@@ -86,8 +92,8 @@ export default function DataLineagePage(){
         <p>内容一致性：{detail.integrity}。资产：{detail.release.asset_class}，复权：{detail.release.adjustment}，体量单位：{detail.release.volume_unit}。此版本仍标为 <b>{detail.release.status}</b>，不得用于真实荐股。</p>
       </section>}
       <section className="lineage-panel">
-        <div className="lineage-panel-top"><div><small>03 / RELEASE GATES</small><h2>仍需补足的验证</h2></div></div>
-        <ul className="lineage-missing">{status.missing.map(v=><li key={v}>{v}</li>)}</ul>
+        <div className="lineage-panel-top"><div><small>{detail ? "03" : "02"} / RELEASE GATES</small><h2>仍需补足的验证</h2></div></div>
+        <ul className="lineage-missing">{status.missing.map(v=><li key={v}>{GATE_NAMES[v]??v}</li>)}</ul>
       </section>
     </>}
   </div>;
