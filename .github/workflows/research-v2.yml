@@ -25,8 +25,8 @@ jobs:
         run: |
           modules=$(find "$GITHUB_WORKSPACE/services" -mindepth 1 -maxdepth 1 -type d | paste -sd ':' -)
           echo "PYTHONPATH=$GITHUB_WORKSPACE/apps/api:$modules" >> "$GITHUB_ENV"
-      - name: Run v2 adversarial unit tests
-        run: python -m pytest -q apps/api/tests/test_research_v2.py
+      - name: Run full backend regression suite
+        run: python -m pytest -q apps/api/tests
       - name: Check v2 router registration
         run: python -c "from app.main import app; assert any(r.path == '/api/research/v2/evaluate' for r in app.routes)"
   frontend:
