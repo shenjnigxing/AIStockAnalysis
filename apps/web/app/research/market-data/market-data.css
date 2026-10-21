@@ -27,3 +27,9 @@
 .md-terminal button:focus-visible,.md-terminal a:focus-visible,.md-terminal input:focus-visible,.md-terminal select:focus-visible{outline:3px solid #159a85;outline-offset:2px}
 @media(max-width:1080px){.md-providers{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.md-terminal{padding:20px 13px 45px}.md-terminal header{flex-direction:column;align-items:start}.md-terminal h1{font-size:24px}.md-status{white-space:normal}.md-panel{padding:16px}.md-providers,.md-accounts{grid-template-columns:1fr}.md-form{flex-direction:column;align-items:stretch}.md-form label{min-width:0}.md-form button{align-self:start}}
+
+.md-provider .md-fetch-failed{color:#b04d3d;font-weight:760}
+.md-steps>a{font-size:12px;color:#117e68;text-decoration:underline;text-underline-offset:2px}
+.md-command{display:grid;gap:9px;background:#f5f9fa;border:1px solid #e0e9ed;border-radius:10px;padding:15px;margin:14px 0}
+.md-command strong{font-size:11px;color:#3b6172}
+.md-command code{display:block;max-width:100%;font:11px/1.8 Consolas,monospace;color:#1c655a;white-space:pre-wrap;overflow-wrap:anywhere;user-select:all}
