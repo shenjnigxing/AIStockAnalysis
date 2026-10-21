@@ -1,3 +1,30 @@
+# AIStock R1.2 — 十角色审查后可本地验收版
+
+> **研究预览版，不是生产投资推荐系统；禁止用于真实下单。** 如在 Windows 上测试，请优先使用本节，而不是下面保留的早期 Phase 0 示例。已知的东方财富证券、东方财富期货及 OKX 私人账户均**未连接**，不要求用户输入交易密码。
+
+## Windows 本地验收（从仓库根目录）
+```powershell
+git fetch origin
+git switch feat/r12-ten-role-hardening
+git pull --ff-only origin feat/r12-ten-role-hardening
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+```
+然后分别在两个 PowerShell 窗口启动：
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev-windows.ps1 -Mode api
+```
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev-windows.ps1 -Mode web
+```
+打开 `http://localhost:3000/research/market-data`，按页面给出的本机命令手动刷新公开报价。例如（无需浏览器密钥或券商登录）：
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\dev-windows.ps1 -Mode refresh -Kind us_equity -Symbol AAPL
+```
+成功后才有本地价格缓存；失败则显示源端不可用，不填假行情。`http://localhost:3000/research/assets` 为**合成演示的**多资产评分，不是当前实盘买入榜。
+[完整晚间验收与故障清单](docs/architecture/r12/03-evening-smoke.md) · [十角色缺陷审查](docs/architecture/r12/01-ten-role-review.md)
+
+---
+
 # AIStock Research V2 — preview
 
 > **Research Preview, not a production recommendation engine.** The original Phase 0 capabilities are still present. For the V2 branch, the first priority is provable data integrity rather than generating more convincing stock lists.
