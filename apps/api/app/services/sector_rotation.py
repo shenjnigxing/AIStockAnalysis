@@ -61,6 +61,14 @@ def score_features(f: dict[str, float], model: str) -> tuple[float, dict[str, fl
             "recent_strength": _clip(50 + r20 * 5),
             "stability": _clip(100 - dd * 4),
         }
+        # Recovery requires observable improvement, not merely deep weakness.
+        # A stagnant loser must not rank highly just because its 60d return is bad.
+        if accel < 1.5 or r20 <= -3:
+            penalty += 24
+            risks.append("相对改善尚未确认：近期强弱/加速度未达到门槛")
+        if r60 > 10:
+            penalty += 15
+            risks.append("60日已相对跑赢较多：不属于低位修复阶段")
         if r20 < -5:
             penalty += 14
             risks.append("近20日持续弱势：可能不是修复")
