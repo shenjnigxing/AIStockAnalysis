@@ -35,14 +35,19 @@ export default async function ResearchWorkspace() {
   return (
     <div className="research-page">
       <div className="research-eyebrow"><span className="research-pulse" /> INVESTMENT INTELLIGENCE / PERSONAL RESEARCH</div>
+      <div className="research-top-warning" role="status">
+        <strong>数据审查未通过：{readinessLabel}</strong>
+        <span>当前不能产生可信的 V2 股票推荐；请先核对行情来源与历史数据。</span>
+        <Link href="/data-center">检查同步任务 →</Link>
+      </div>
       <div className="research-hero">
         <div>
           <div className="research-kicker">研究先于交易 · EVIDENCE BEFORE ACTION</div>
-          <h1>找到被忽视的机会，<br/><span>也看清它的风险。</span></h1>
+          <h1>从行业开始研究，<br/><span>先核对证据，再做判断。</span></h1>
           <p>面向 A 股中长线的结构化研究。先识别市场环境，再研究行业轮动、企业质量与估值位置。每条判断都应有出处和失效条件。</p>
           <div className="research-hero-actions">
-            <Link href="/research/lab" className="research-primary">打开 V2 因子实验室 <span>↗</span></Link>
-            <Link href="/data-center" className="research-outline">检查数据完整性</Link>
+            <Link href="/data-center" className="research-primary">查看数据状态 <span>↗</span></Link>
+            <Link href="/research/lab" className="research-outline">离线因子实验室</Link>
           </div>
         </div>
         <div className="research-focus-panel">
@@ -58,7 +63,7 @@ export default async function ResearchWorkspace() {
 
       <div className="research-section-head"><div><span className="research-section-index">01</span><h2>当前研究就绪度</h2></div><span className="research-section-note">系统能力与数据事实分开呈现</span></div>
       <div className="research-metric-grid">
-        <div className="research-metric"><span>V2 规则评分</span><strong>{isEngineOnline ? "可调用" : "不可用"}</strong><small>{isEngineOnline ? "只读 · 不连接下单" : "API 未连通，请检查后端"}</small></div>
+        <div className="research-metric"><span>V2 实验内核</span><strong>{isEngineOnline ? "可调用" : "不可用"}</strong><small>{isEngineOnline ? "仅手工快照 · 不代表正式推荐" : "API 未连通，请检查后端"}</small></div>
         <div className="research-metric"><span>历史 K 线覆盖标的</span><strong>{dataStatus.ok ? health.symbols_with_daily_bars.toLocaleString("zh-CN") : "—"}</strong><small>数据来源未核实，不能视作有效样本</small></div>
         <div className="research-metric"><span>最近日线日期</span><strong>{dataStatus.ok ? (health.latest_daily_bar || "无") : "—"}</strong><small>{health.latest_daily_age_calendar_days === null ? "交易日新鲜度尚待校验" : `距研究日 ${health.latest_daily_age_calendar_days} 个日历日 · 不等于交易日`}</small></div>
         <div className="research-metric"><span>研究数据审查</span><strong className="research-critical-text">{readinessLabel}</strong><small>已记录质量问题：{dataStatus.ok ? health.quality_issue_count : "—"}</small></div>
