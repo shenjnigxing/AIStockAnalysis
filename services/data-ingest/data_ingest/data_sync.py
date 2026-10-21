@@ -1,4 +1,6 @@
 import json
+import os
+import math
 from datetime import date, datetime, timedelta
 from typing import Any, Callable
 
@@ -112,15 +114,25 @@ def _get_or_create_checkpoint(db: Session, job_type: str, scope_key: str) -> Syn
 
 def _list_symbols(db: Session) -> list[str]:
     symbols = db.scalars(select(StockMaster.symbol).where(StockMaster.is_active.is_(True)).limit(200)).all()
-    return list(symbols) if symbols else ["000001", "600000", "600519"]
+    if symbols:
+        return list(symbols)
+    if os.getenv("MARKET_DATA_MODE", "real").strip().lower() == "mock":
+        return ["000001", "600000", "600519"]
+    raise ValueError("Stock master is empty; sync real stock master first. Refusing hardcoded ticker fallback.")
 
 
 def _validate_ohlc_row(row: dict[str, Any]) -> bool:
-    if row["open"] < 0 or row["high"] < 0 or row["low"] < 0 or row["close"] < 0:
+    try:
+        values = [float(row[key]) for key in ("open", "high", "low", "close", "volume", "amount")]
+        opening, high, low, closing, volume, amount = values
+        return (
+            all(math.isfinite(v) for v in values)
+            and low > 0 and low <= min(opening, closing)
+            and high >= max(opening, closing)
+            and volume >= 0 and amount >= 0
+        )
+    except (KeyError, ValueError, TypeError):
         return False
-    if row["high"] < row["low"]:
-        return False
-    return True
 
 
 class DataSyncService:
@@ -142,6 +154,9 @@ class DataSyncService:
         job_id = job.id
         try:
             result = runner(job)
+            result["data_mode"] = self.adapter.mode
+            result["data_provider"] = "synthetic_demo" if self.adapter.mode == "mock" else "akshare"
+            result["point_in_time_verified"] = False
             job.status = "completed"
             job.result_json = json.dumps(result, ensure_ascii=True, default=str)
             job.finished_at = datetime.utcnow()
@@ -198,6 +213,10 @@ class DataSyncService:
                         continue
                     rows.append(row)
                 total_rows += _upsert_daily_bars(self.db, rows)
+                # Never advance a watermark past a batch consisting only of invalid rows.
+                if fetched_rows and not rows:
+                    self.db.commit()  # Keep quality issue records visible.
+                    raise ValueError(f"All daily rows invalid for {symbol}; checkpoint unchanged")
                 cp.checkpoint_value = end.isoformat()
                 self.db.commit()
             return {"rows": total_rows, "symbols": len(target_symbols)}
