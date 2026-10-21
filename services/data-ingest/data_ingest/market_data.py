@@ -1,7 +1,14 @@
+import os
+
 from datetime import date, datetime, timedelta
 
 class AkshareMarketDataAdapter:
     def __init__(self) -> None:
+        self.mode = os.getenv("MARKET_DATA_MODE", "real").strip().lower()
+        if self.mode not in {"real", "mock"}:
+            raise ValueError("MARKET_DATA_MODE must be real or mock")
+        if self.mode == "mock" and os.getenv("APP_ENV", "dev").lower() in {"prod", "production"}:
+            raise ValueError("Synthetic market data is forbidden in production")
         self._ak = None
         try:
             import akshare as ak  # type: ignore
@@ -10,8 +17,18 @@ class AkshareMarketDataAdapter:
         except Exception:
             self._ak = None
 
+    def _require_explicit_mock_mode(self) -> None:
+        """Never fall back to synthetic prices after real-provider failure."""
+        if self.mode != "mock":
+            raise RuntimeError(
+                "Real market-data provider is unavailable, returned empty data, or "
+                "its request failed. Refusing synthetic fallback. "
+                "Install/configure AKShare or explicitly set MARKET_DATA_MODE=mock "
+                "in a non-production demonstration environment."
+            )
+
     def fetch_stock_master(self) -> list[dict]:
-        if self._ak is not None:
+        if self.mode == "real" and self._ak is not None:
             try:
                 df = self._ak.stock_zh_a_spot_em()
                 if not df.empty:
@@ -26,6 +43,7 @@ class AkshareMarketDataAdapter:
                     ]
             except Exception:
                 pass
+        self._require_explicit_mock_mode()
         return [
             {"symbol": "000001", "name": "PingAnBank", "market": "SZ", "is_active": True},
             {"symbol": "600000", "name": "SPDBank", "market": "SH", "is_active": True},
@@ -33,7 +51,7 @@ class AkshareMarketDataAdapter:
         ]
 
     def fetch_daily_bars(self, symbol: str, start_date: date, end_date: date) -> list[dict]:
-        if self._ak is not None:
+        if self.mode == "real" and self._ak is not None:
             try:
                 df = self._ak.stock_zh_a_hist(
                     symbol=symbol,
@@ -58,6 +76,7 @@ class AkshareMarketDataAdapter:
                     ]
             except Exception:
                 pass
+        self._require_explicit_mock_mode()
         rows = []
         cursor = start_date
         px = 10.0 + (int(symbol[-2:]) / 100)
@@ -83,6 +102,7 @@ class AkshareMarketDataAdapter:
         return rows
 
     def fetch_minute_bars(self, symbol: str, start_time: datetime, end_time: datetime) -> list[dict]:
+        self._require_explicit_mock_mode()  # No real minute-bar adapter is implemented.
         rows = []
         cursor = start_time.replace(second=0, microsecond=0)
         base_price = 10.0 + (int(symbol[-2:]) / 100)
@@ -108,7 +128,7 @@ class AkshareMarketDataAdapter:
 
     def fetch_realtime_quotes(self, symbols: list[str]) -> list[dict]:
         now = datetime.utcnow().replace(microsecond=0)
-        if self._ak is not None:
+        if self.mode == "real" and self._ak is not None:
             try:
                 df = self._ak.stock_zh_a_spot_em()
                 if not df.empty:
@@ -126,6 +146,7 @@ class AkshareMarketDataAdapter:
                     ]
             except Exception:
                 pass
+        self._require_explicit_mock_mode()
         symbols = symbols or ["000001", "600000", "600519"]
         return [
             {
