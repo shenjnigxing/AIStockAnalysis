@@ -49,3 +49,22 @@ jobs:
       - name: Build
         working-directory: apps/web
         run: npm run build
+  browser-smoke:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: "http://127.0.0.1:8000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install Playwright and Next dependencies
+        run: |
+          npm ci
+          npm ci --prefix apps/web
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test research interaction in Chromium
+        run: npx playwright test tests/e2e/sector-research.spec.ts
