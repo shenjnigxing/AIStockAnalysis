@@ -181,11 +181,27 @@ def fetch_public_quote(kind: str, symbol: str) -> dict[str, Any]:
             # Fixed public endpoint, tokenized assets are not common-share ownership.
             if not re.fullmatch(r"X[A-Z]{1,10}-USDT", symbol):
                 raise PublicQuoteSourceError("Unexpected tokenized stock symbol")
+            # Official public instruments endpoint classifies stocks with instCategory=3.
+            # A leading X alone does not prove that the asset is a tokenized equity.
+            instrument_query = urllib.parse.urlencode({"instType": "SPOT", "instId": symbol})
+            instrument_req = urllib.request.Request(
+                "https://www.okx.com/api/v5/public/instruments?" + instrument_query,
+                headers={"Accept": "application/json", "User-Agent": "AIStock-Research/0.1"})
+            with urllib.request.urlopen(instrument_req, timeout=4) as response:
+                instruments = json.load(response)
+            listed = instruments.get("data", [])
+            if instruments.get("code") != "0" or len(listed) != 1:
+                raise PublicQuoteSourceError("OKX stock instrument was not verified")
+            contract = listed[0]
+            if (contract.get("instId") != symbol or contract.get("instType") != "SPOT"
+                    or str(contract.get("instCategory")) != "3"
+                    or contract.get("state") != "live"):
+                raise PublicQuoteSourceError("Not a listed live stock-token SPOT instrument")
             query = urllib.parse.urlencode({"instId": symbol})
             req = urllib.request.Request(
                 "https://www.okx.com/api/v5/market/ticker?" + query,
                 headers={"Accept": "application/json", "User-Agent": "AIStock-Research/0.1"})
-            with urllib.request.urlopen(req, timeout=7) as response:
+            with urllib.request.urlopen(req, timeout=4) as response:
                 payload = json.load(response)
             if payload.get("code") != "0" or len(payload.get("data", [])) != 1:
                 raise PublicQuoteSourceError("OKX ticker unavailable")
