@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 type Item = { href: string; name: string; icon: string };
 const research: Item[] = [
   { href: "/research", name: "研究工作台", icon: "◈" },
+  { href: "/research/assets", name: "多资产研究 V3", icon: "◈" },
   { href: "/research/sectors", name: "行业轮动实验", icon: "◱" },
   { href: "/scanner", name: "市场扫描", icon: "⌁" },
   { href: "/recommendations", name: "旧版推荐对照", icon: "↗" },
@@ -68,7 +69,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         <header className="v2-header">
           <div className="v2-header-trail">AIStock <span>/</span> Research Workspace</div>
           <div className="v2-header-right">
-            <span className="v2-header-pill">A 股 · 中长线</span>
+            <span className="v2-header-pill">跨资产 · 双周期</span>
             <Link href="/data-center" className="v2-data-link">核对数据状态 ↗</Link>
           </div>
         </header>
