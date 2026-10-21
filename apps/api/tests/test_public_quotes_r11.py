@@ -234,7 +234,7 @@ def test_yahoo_us_bar_source_is_not_exchange_realtime_or_okx(monkeypatch):
     monkeypatch.setenv("MARKET_DATA_MODE","real")
     bar_time=datetime(2026,10,20,15,30,tzinfo=timezone.utc)
     class Pos:
-        def __getitem__(self, n): return {"Close":193.12}
+        def __getitem__(self, n): return 193.12 if n == "Close" else None
     class Index:
         def __getitem__(self, n): return bar_time
     class Iloc:
