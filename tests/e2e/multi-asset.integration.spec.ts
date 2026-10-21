@@ -20,7 +20,7 @@ test("multi-asset V3 real backend, two horizons and five risk-aware tabs", async
   await expect(page.getByText(/利率上行 50bp/)).toBeVisible();
   await page.getByRole("button",{name:/预览微信和邮件报告/}).click();
   await expect(page.getByText("PREVIEW ONLY · 未发送")).toBeVisible({timeout:15000});
-  await expect(page.getByText("企业微信")).toBeVisible();
+  await expect(page.getByText("企业微信",{exact:true})).toBeVisible();
   await expect(page.getByText("电子邮件")).toBeVisible();
   await page.screenshot({path:"test-results/v3-desktop.png",fullPage:true});
   await page.getByRole("button",{name:/短期研究/}).click();
