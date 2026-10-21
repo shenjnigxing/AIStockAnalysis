@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, Float, Integer, String, Text, UniqueConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -468,3 +468,47 @@ class AuditLog(Base):
     actor: Mapped[str] = mapped_column(String(64), default="system")
     detail: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# R1: Separate versioned, source-recorded dataset store. No foreign keys to
+# legacy DailyBar: previous synthetic rows MUST NOT receive provenance by association.
+class DatasetRelease(Base):
+    __tablename__ = "dataset_releases"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    asset_class: Mapped[str] = mapped_column(String(32), index=True)
+    product_type: Mapped[str] = mapped_column(String(32))
+    source_id: Mapped[str] = mapped_column(String(96))
+    symbol: Mapped[str] = mapped_column(String(24), index=True)
+    venue: Mapped[str] = mapped_column(String(24))
+    currency: Mapped[str] = mapped_column(String(8))
+    adjustment: Mapped[str] = mapped_column(String(24))
+    volume_unit: Mapped[str] = mapped_column(String(24), default="source_reported")
+    date_from: Mapped[date] = mapped_column(Date)
+    date_to: Mapped[date] = mapped_column(Date)
+    collected_at_utc: Mapped[datetime] = mapped_column(DateTime)
+    raw_sha256: Mapped[str] = mapped_column(String(64))
+    rows_sha256: Mapped[str] = mapped_column(String(64))
+    row_count: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(32), default="provider_recorded")
+    quality_state: Mapped[str] = mapped_column(String(40), default="schema_validated_only")
+    schema_version: Mapped[str] = mapped_column(String(16), default="r1.0")
+    raw_payload_json: Mapped[str] = mapped_column(Text)
+
+
+class DatasetPriceObservation(Base):
+    __tablename__ = "dataset_price_observations"
+    __table_args__ = (UniqueConstraint("release_id", "obs_date", name="uq_dataset_release_date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    release_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("dataset_releases.id", ondelete="RESTRICT"), index=True
+    )
+    obs_date: Mapped[date] = mapped_column(Date, index=True)
+    open: Mapped[float] = mapped_column(Float)
+    high: Mapped[float] = mapped_column(Float)
+    low: Mapped[float] = mapped_column(Float)
+    close: Mapped[float] = mapped_column(Float)
+    volume: Mapped[float] = mapped_column(Float)
+    amount: Mapped[float] = mapped_column(Float)
