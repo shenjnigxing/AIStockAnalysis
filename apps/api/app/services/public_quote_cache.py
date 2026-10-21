@@ -3,9 +3,10 @@
 The latest public provider snapshot is never PIT-verified or trade-eligible.
 """
 from __future__ import annotations
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from hashlib import sha256
 import json
+import math
 import multiprocessing
 import os
 import re
@@ -34,6 +35,10 @@ class QuoteBusy(RuntimeError):
 
 
 class QuoteUnavailable(RuntimeError):
+    pass
+
+
+class QuoteIntegrityError(RuntimeError):
     pass
 
 
@@ -116,7 +121,28 @@ def _last_attempt(db: Session, kind: str, symbol: str) -> PublicQuoteFetchAttemp
     ).order_by(PublicQuoteFetchAttempt.id.desc()).limit(1))
 
 
+def _verify(row: PublicQuoteSnapshot) -> None:
+    """Detect accidental data/metadata edits before a cache value is exposed."""
+    spec = SOURCES.get(row.kind)
+    if not spec or row.source_id != spec["source_id"] or row.asset_class != spec["asset_class"] or row.product_type != spec["product_type"]:
+        raise QuoteIntegrityError("Quote source identity changed")
+    if row.metric != spec["metric"] or row.unit != spec["unit"] or row.currency != spec["currency"]:
+        raise QuoteIntegrityError("Quote metric or units changed")
+    if _sha(row.source_record_json) != row.source_record_sha256:
+        raise QuoteIntegrityError("Provider record content changed")
+    payload = {
+        "kind": row.kind, "symbol": row.symbol, "source_id": row.source_id,
+        "metric": row.metric, "unit": row.unit, "currency": row.currency,
+        "value": row.value, "source_display_time": row.source_display_time,
+        "source_timestamp_utc": row.source_timestamp_utc.isoformat() if row.source_timestamp_utc else None,
+        "source_record_sha256": row.source_record_sha256,
+    }
+    if _sha(_canonical(payload)) != row.observation_sha256:
+        raise QuoteIntegrityError("Quote observation changed")
+
+
 def _output(row: PublicQuoteSnapshot, now: datetime) -> dict[str, Any]:
+    _verify(row)
     age = max(0, (now - row.collected_at_utc).total_seconds())
     threshold = SOURCES[row.kind]["cooldown"] * 3
     source_age = None
@@ -124,6 +150,7 @@ def _output(row: PublicQuoteSnapshot, now: datetime) -> dict[str, Any]:
         source_age = max(0, int((now - row.source_timestamp_utc).total_seconds()))
     freshness = (
         "stale_cache" if age > threshold else
+        "stale_source" if source_age is not None and source_age > max(threshold, 300) else
         "time_unverified" if row.time_quality == "time_unverified" else
         "daily_observation" if row.time_quality == "daily_observation" else
         "provider_timestamped"
@@ -192,11 +219,11 @@ def refresh_quote(db: Session, *, kind: str, symbol: str) -> dict[str, Any]:
             data = fetch_supervised(kind, symbol)
             spec = SOURCES[kind]
             value = float(data["value"])
-            if not (0 < value < 1_000_000_000) or not __import__("math").isfinite(value):
+            if not (0 < value < 1_000_000_000) or not math.isfinite(value):
                 raise QuoteUnavailable("invalid_quote_value")
             source_at = data.get("source_timestamp_utc")
             if source_at is not None and (not isinstance(source_at, datetime)
-                                          or source_at > now + __import__("datetime").timedelta(minutes=2)):
+                                          or source_at > now + timedelta(minutes=2)):
                 raise QuoteUnavailable("invalid_source_time")
             quality = data["time_quality"]
             if quality not in ("time_unverified", "daily_observation", "provider_update_timestamp"):
