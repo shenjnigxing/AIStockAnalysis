@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 import json
 import re
+import pytest
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -111,3 +112,31 @@ def test_quote_cache_stale_source_separate_from_request_duration(monkeypatch):
     assert row["cache_age_seconds"] < 30
     assert row["source_age_seconds"] >= 7000
     assert row["request_duration_ms"] >= 0
+
+
+def test_legacy_real_order_account_mutations_are_off_by_default(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "dev")
+    monkeypatch.setenv("BROKER_PROVIDER", "mock")
+    for method,path in [
+        ("post","/api/live/order"),
+        ("post","/api/live/order/1/cancel"),
+        ("post","/api/live/sync/account"),
+        ("get","/api/live/orders"),
+        ("get","/api/live/positions"),
+        ("get","/api/live/assets"),
+    ]:
+        response=getattr(client,method)(path,json={} if method=="post" else None)
+        assert response.status_code==403,(path,response.text)
+        assert "disabled" in response.json()["detail"]
+
+
+def test_live_capability_requires_both_test_environment_and_mock_broker(monkeypatch):
+    from fastapi import HTTPException
+    from app.api.routes.live import _require_test_only_live
+    monkeypatch.setenv("APP_ENV","test")
+    monkeypatch.setenv("BROKER_PROVIDER","mock")
+    assert _require_test_only_live() is None
+    monkeypatch.setenv("BROKER_PROVIDER","real")
+    with pytest.raises(HTTPException) as exc:
+        _require_test_only_live()
+    assert exc.value.status_code==403
