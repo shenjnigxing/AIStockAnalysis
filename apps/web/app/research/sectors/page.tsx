@@ -24,7 +24,7 @@ type ResearchResponse = {
   warning: string; items: Result[];
 };
 const FACTOR_LABELS: Record<string, string> = {
-  neglect: "前期低关注", acceleration: "近期改善速度",
+  neglect: "前期相对弱势", acceleration: "近期改善速度",
   recent_strength: "最近相对强度", stability: "趋势稳定度",
   strength_20d: "20 日趋势", strength_60d: "60 日趋势",
   consistency: "强度持续性",
@@ -50,7 +50,7 @@ function demoInput(model: ResearchInput["model"]): ResearchInput {
     date, close: Number((100 * Math.exp(i * .0008 + Math.sin(i / 11) * .004)).toFixed(6))
   }));
   const profiles = [
-    { sector_id: "DEMO_RECOVERY", sector_name: "合成修复行业", make: (i: number) => .003 * i - (i < 48 ? .006 * i : .006 * 48) + Math.max(0, i - 48) * .007 },
+    { sector_id: "DEMO_RECOVERY", sector_name: "合成修复行业", make: (i: number) => -.0043 * Math.min(i, 60) + Math.max(0, i - 60) * .006 },
     { sector_id: "DEMO_TREND", sector_name: "合成趋势行业", make: (i: number) => .0028 * i },
     { sector_id: "DEMO_WEAK", sector_name: "合成弱势行业", make: (i: number) => -.0023 * i },
     { sector_id: "DEMO_RANGE", sector_name: "合成震荡行业", make: (i: number) => Math.sin(i / 8) * .025 },
