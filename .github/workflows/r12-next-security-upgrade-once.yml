@@ -1,17 +1,16 @@
-name: One-time R1.2 Next security upgrade
-# Retry after adapting App Router's async params/searchParams.
+name: One-time R1.2 patched dependency lockfile
 on:
   push:
     branches: [feat/r12-ten-role-hardening]
     paths:
       - ".github/workflows/r12-next-security-upgrade-once.yml"
-  pull_request:
-    paths:
-      - ".github/workflows/r12-next-security-upgrade-once.yml"
 permissions:
   contents: write
+concurrency:
+  group: r12-security-lockfile-single-writer
+  cancel-in-progress: false
 jobs:
-  upgrade:
+  lock-patched-dependencies:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -22,21 +21,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Update vulnerable Next 14 to October 2026 patched Next 15
+      - name: Patch reviewed vulnerable transitives without Next 16 breaking upgrade
         working-directory: apps/web
         run: |
-          npm install --save-exact next@15.5.28 react@19.2.6 react-dom@19.2.6
-          npm install --save-dev --save-exact @types/react@19 @types/react-dom@19
-      - name: Ensure dependency tree builds
+          npm pkg set 'overrides.nanoid=3.3.20' 'overrides.postcss=8.5.25' 'overrides.source-map-js=1.2.2'
+          npm install
+          npm ls next react react-dom nanoid postcss source-map-js
+      - name: Verify app and security audit
         working-directory: apps/web
         run: |
           npx tsc --noEmit
           npm run build
-          npm audit --omit=dev --audit-level=critical
-      - name: Commit reproducible direct dependency and lock upgrades
+          npm audit --omit=dev --audit-level=high
+      - name: Commit exact audited lockfile to feature branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add apps/web/package.json apps/web/package-lock.json
-          git diff --cached --quiet || git commit -m "security(r12): update patched Next 15 and React 19 with lockfile"
-          git push origin HEAD:feat/r12-ten-role-hardening
+          if ! git diff --cached --quiet; then
+            git commit -m "security(r12): pin audited safe transitive dependency versions"
+            git push origin HEAD:feat/r12-ten-role-hardening
+          fi
