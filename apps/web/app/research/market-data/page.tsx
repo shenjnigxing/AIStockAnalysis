@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {useEffect,useState} from "react";
 import "./market-data.css";
-type Provider={kind:string;source_id:string;metric:string;cooldown_seconds:number;has_cached_snapshot:boolean;last_collected_at_utc:string|null};
+type Provider={kind:string;source_id:string;metric:string;unit:string;currency:string;cooldown_seconds:number;has_cached_snapshot:boolean;last_collected_at_utc:string|null;last_attempt_state:string;last_attempt_at_utc:string|null;last_error_code:string|null};
 type Account={provider:string;display_name:string;account_type:string;connection_mode:string;automatic_connection:boolean;supported_product_classes:string[]};
 type Quote={kind:string;symbol:string;value:number;unit:string;currency:string;metric:string;source_id:string;freshness:string;time_quality:string;cache_age_seconds:number;source_age_seconds:number|null;collected_at_utc:string;source_display_time:string;research_eligible:boolean;can_trade:boolean};
 const LABELS:Record<string,string>={
@@ -69,7 +69,8 @@ export default function PublicMarketDataPage(){
       <h2>01 / 公开行情数据源</h2>
       {loading?<p>正在读取数据源配置…</p>:<div className="md-providers">{providers.map(p=><div key={p.kind} className="md-provider">
         <strong>{LABELS[p.kind]??p.kind}</strong><small>{p.source_id}</small>
-        <span>{p.has_cached_snapshot?"已有缓存":"暂无缓存"} · 刷新冷却 {p.cooldown_seconds} 秒</span>
+        <span>{p.has_cached_snapshot?"已有缓存":"暂无缓存"} · {p.metric} / {p.unit} · 冷却 {p.cooldown_seconds} 秒</span>
+        <span className={p.last_attempt_state==="failure"?"md-fetch-failed":""}>{p.last_attempt_state==="never"?"尚未采集":p.last_attempt_state==="failure"?"上次刷新失败（缓存不代表刷新成功）":"最近采集成功"}</span>
       </div>)}</div>}
     </section>
     <section className="md-panel">
@@ -83,8 +84,19 @@ export default function PublicMarketDataPage(){
         <span>{STATUS[quote.freshness]??quote.freshness} · 数据来源：{quote.source_id}</span>
         <p>抓取时间（UTC）：{quote.collected_at_utc}；缓存年龄：{quote.cache_age_seconds} 秒；源端时间：{quote.source_display_time||"未提供"}。不可据此直接买卖。</p></div>}
     </section>
+    <section className="md-panel md-steps">
+      <h2>03 / 本机采集与测试</h2>
+      <p>为防止公开网站被高频请求，页面只读已保存的报价。回家后先运行以下命令，刷新完成再点上面的“查看本地快照”。无需输入任何证券账户或欧易密码。</p>
+      <div className="md-command"><strong>Windows · 仓库根目录 PowerShell</strong>
+        <code>.\scripts\dev-windows.ps1 -Mode doctor</code>
+        <code>.\scripts\dev-windows.ps1 -Mode refresh -Kind {kind} -Symbol {symbol||"AAPL"}</code>
+        <code>.\scripts\dev-windows.ps1 -Mode status -Kind {kind} -Symbol {symbol||"AAPL"}</code>
+      </div>
+      <p>遇到 404 表示从未成功抓取；429 表示冷却中；502 表示公共数据源失败或超时。不要把失败理解为股价为零，亦不可使用旧价格执行买卖。</p>
+      <Link href="/research/data-lineage">查看 R1 数据版本与来源完整性 →</Link>
+    </section>
     <section className="md-panel">
-      <h2>03 / 账户接入边界</h2><p>账户持仓与公开行情来源不同。尚未验证个人东方财富账户的官方只读 API，当前不采集你的个人登录凭据和账户号码。</p>
+      <h2>04 / 账户接入边界</h2><p>账户持仓与公开行情来源不同。尚未验证个人东方财富账户的官方只读 API，当前不采集你的个人登录凭据和账户号码，也不声称任何推荐模型已具备样本外超额收益。</p>
       <div className="md-accounts">{accounts.map(a=><div key={a.provider}><strong>{a.display_name}</strong>
         <span>尚未连接 · 只读账单格式待核验</span>
         <small>{a.supported_product_classes.join(" / ")}</small>
