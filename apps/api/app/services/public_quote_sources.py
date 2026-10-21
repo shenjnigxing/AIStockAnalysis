@@ -6,10 +6,14 @@ guaranteed exchange transaction time.
 """
 from __future__ import annotations
 
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timezone
 from zoneinfo import ZoneInfo
 import math
 import os
+import re
+import urllib.parse
+import urllib.request
+import json
 from typing import Any
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -32,6 +36,15 @@ SOURCES = {
     "futures": {"source_id": "akshare_sina_futures_zh_spot", "asset_class": "futures",
                 "product_type": "contract", "metric": "price", "unit": "contract_quote",
                 "currency": "CNY", "cooldown": 30},
+    "us_equity": {"source_id": "yfinance_yahoo_us_equity_1m", "asset_class": "us_equity",
+                  "product_type": "common_stock", "metric": "bar_close", "unit": "USD/share",
+                  "currency": "USD", "cooldown": 90},
+    "us_etf": {"source_id": "yfinance_yahoo_us_etf_1m", "asset_class": "fund",
+               "product_type": "us_etf", "metric": "bar_close", "unit": "USD/share",
+               "currency": "USD", "cooldown": 120},
+    "okx_stock_token": {"source_id": "okx_public_unified_tokenized_stock_spot", "asset_class": "tokenized_equity",
+                        "product_type": "tokenized_stock", "metric": "last", "unit": "USDT/tokenized_share",
+                        "currency": "USDT", "cooldown": 20},
     "treasury_10y": {"source_id": "akshare_sina_bond_gb_zh_sina", "asset_class": "treasury",
                      "product_type": "yield_curve_point", "metric": "yield_pct", "unit": "%",
                      "currency": "CNY", "cooldown": 3600},
@@ -142,6 +155,47 @@ def fetch_public_quote(kind: str, symbol: str) -> dict[str, Any]:
             display = str(row.get("time", "")).strip()
             source_at = None
             record = row
+        elif kind in ("us_equity", "us_etf"):
+            # Unofficial Yahoo source: research/personal data, NOT licensed consolidated SIP.
+            import yfinance as yf
+            frame = yf.Ticker(symbol).history(
+                period="5d", interval="1m", prepost=True, auto_adjust=False)
+            if frame is None or frame.empty:
+                raise PublicQuoteSourceError("Yahoo returned no one-minute bars")
+            if len(frame) > 5000:
+                raise PublicQuoteSourceError("Unexpectedly large Yahoo quote response")
+            final = frame.iloc[-1]
+            index_ts = frame.index[-1]
+            if index_ts.tzinfo is None:
+                raise PublicQuoteSourceError("Yahoo bar lacks timezone")
+            at = index_ts.to_pydatetime() if hasattr(index_ts, "to_pydatetime") else index_ts
+            value = _number(final["Close"])
+            display = at.isoformat()
+            source_at = at
+            record = {"symbol": symbol, "bar_start": display, "bar_interval": "1m",
+                      "close": value, "prepost_included": True,
+                      "session": "regular_or_extended_not_individually_verified"}
+        elif kind == "okx_stock_token":
+            # Fixed public endpoint, tokenized assets are not common-share ownership.
+            if not re.fullmatch(r"X[A-Z]{1,10}-USDT", symbol):
+                raise PublicQuoteSourceError("Unexpected tokenized stock symbol")
+            query = urllib.parse.urlencode({"instId": symbol})
+            req = urllib.request.Request(
+                "https://www.okx.com/api/v5/market/ticker?" + query,
+                headers={"Accept": "application/json", "User-Agent": "AIStock-Research/0.1"})
+            with urllib.request.urlopen(req, timeout=7) as response:
+                payload = json.load(response)
+            if payload.get("code") != "0" or len(payload.get("data", [])) != 1:
+                raise PublicQuoteSourceError("OKX ticker unavailable")
+            row = payload["data"][0]
+            if row.get("instId") != symbol or row.get("instType") != "SPOT":
+                raise PublicQuoteSourceError("OKX returned unexpected instrument")
+            value = _number(_get(row, "last"))
+            millis = int(_get(row, "ts"))
+            source_at = datetime.fromtimestamp(millis / 1000, tz=timezone.utc)
+            display = source_at.isoformat()
+            record = {k: row.get(k) for k in
+                      ("instId", "instType", "last", "bidPx", "askPx", "ts")}
         elif kind == "treasury_10y":
             if symbol != "CN10Y":
                 raise PublicQuoteSourceError("Only CN10Y is supported")
@@ -165,7 +219,7 @@ def fetch_public_quote(kind: str, symbol: str) -> dict[str, Any]:
         "value": value,
         "source_display_time": display[:96],
         "source_timestamp_utc": source_at.astimezone(ZoneInfo("UTC")).replace(tzinfo=None) if source_at else None,
-        "time_quality": "provider_update_timestamp" if source_at else (
+        "time_quality": ("bar_timestamp" if kind in ("us_equity", "us_etf") else "provider_update_timestamp") if source_at else (
             "daily_observation" if kind == "treasury_10y" else "time_unverified"),
         "source_record": record,
     }
