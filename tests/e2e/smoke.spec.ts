@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("home page renders", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "股票投研交易助手" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /从行业开始研究/ })).toBeVisible();
 });
 
 test("required routes render", async ({ page }) => {
