@@ -4,6 +4,9 @@ on:
     branches: [feat/r12-ten-role-hardening]
     paths:
       - ".github/workflows/r12-next-security-upgrade-once.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/r12-next-security-upgrade-once.yml"
 permissions:
   contents: write
 concurrency:
@@ -11,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   lock-patched-dependencies:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
