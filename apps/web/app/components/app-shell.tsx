@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 type Item = { href: string; name: string; icon: string };
 const research: Item[] = [
   { href: "/research", name: "研究工作台", icon: "◈" },
+  { href: "/research/sectors", name: "行业轮动实验", icon: "◱" },
   { href: "/scanner", name: "市场扫描", icon: "⌁" },
   { href: "/recommendations", name: "旧版推荐对照", icon: "↗" },
   { href: "/research/lab", name: "因子实验室", icon: "▦" },
