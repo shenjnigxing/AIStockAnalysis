@@ -22,7 +22,7 @@ test("R1.2 changing the selected instrument also changes displayed refresh instr
   await expect(page.locator(".md-command code").nth(1)).toContainText("-Kind etf -Symbol 510300");
   await page.locator(".md-form select").selectOption("us_etf");
   await expect(page.locator(".md-command code").nth(1)).toContainText("-Kind us_etf -Symbol SPY");
-  await expect(page.getByText("真实推荐", {exact:false}).first()).toBeVisible();
+  await expect(page.getByText("只读研究 · 未授权实盘推荐")).toBeVisible();
 });
 
 test("R1.2 mobile finished state with commands does not overflow",async({page})=>{
