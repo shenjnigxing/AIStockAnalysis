@@ -10,9 +10,10 @@ type RecommendationSnapshot = {
   action_suggestion: string;
 };
 
-export default async function StockDetailPage({ params }: { params: { symbol: string } }) {
+export default async function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
+  const { symbol } = await params;
   const recommendationRes = await fetchApiResult<RecommendationSnapshot | null>(
-    `/api/recommendation/${params.symbol}`,
+    `/api/recommendation/${symbol}`,
     null
   );
   const recommendation = recommendationRes.data;
@@ -20,9 +21,9 @@ export default async function StockDetailPage({ params }: { params: { symbol: st
 
   return (
     <main className="container">
-      <h1>个股详情：{params.symbol}</h1>
+      <h1>个股详情：{symbol}</h1>
       <AutoRefresh intervalSeconds={20} />
-      <PageStateBanner state={pageState} detail={`股票=${params.symbol}`} />
+      <PageStateBanner state={pageState} detail={`股票=${symbol}`} />
       <div className="card">
         {!recommendation ? (
           <p>暂无推荐快照，请先执行“推荐运行”。</p>
