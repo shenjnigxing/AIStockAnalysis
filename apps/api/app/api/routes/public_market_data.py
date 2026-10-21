@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.api.routes.dataset_releases import _require_admin
 from app.services.public_quote_cache import (
-    QuoteBusy, QuoteUnavailable, cached_quote, quote_status, refresh_quote,
+    QuoteBusy, QuoteUnavailable, QuoteIntegrityError, cached_quote, quote_status, refresh_quote,
 )
 router = APIRouter()
 QuoteKind = Literal["equity","etf","sge_gold","futures","treasury_10y"]
@@ -30,6 +30,8 @@ def quote(kind: QuoteKind = Query(), symbol: str = Query(min_length=1,max_length
         result = cached_quote(db, kind=kind, symbol=symbol)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="Unsupported quote instrument") from exc
+    except QuoteIntegrityError as exc:
+        raise HTTPException(status_code=409, detail="Cached quote integrity violation") from exc
     if result is None:
         raise HTTPException(status_code=404, detail="No cached source quote; admin refresh required")
     return result
@@ -41,6 +43,8 @@ def refresh(payload: RefreshRequest, db: Session=Depends(get_db)):
         return refresh_quote(db, kind=payload.kind, symbol=payload.symbol)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="Unsupported quote instrument") from exc
+    except QuoteIntegrityError as exc:
+        raise HTTPException(status_code=409, detail="Cached quote integrity violation") from exc
     except QuoteBusy as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
     except QuoteUnavailable as exc:
