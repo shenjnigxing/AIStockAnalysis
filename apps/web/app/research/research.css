@@ -69,3 +69,11 @@
 .research-audit-details li{margin:8px 0;line-height:1.65}
 @media(max-width:1024px){.research-data-detail{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.research-data-panel{padding:15px}.research-data-detail{gap:7px}.research-data-detail>div{padding:11px}.research-data-heading{align-items:flex-start;flex-direction:column}.research-data-state{font-size:10px}}
+
+
+/* Second-pass UX review: trust warning above the fold, not below promotional hero. */
+.research-top-warning{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff4e9;border:1px solid #f0d2b7;border-left:4px solid #c57d38;border-radius:9px;margin:0 0 18px;padding:13px 17px;font-size:11px;line-height:1.7;color:#81583c}
+.research-top-warning strong{color:#8b3e20;font-size:12px}
+.research-top-warning span{flex:1;min-width:220px}
+.research-top-warning a{color:#9c502c;text-decoration:underline;font-weight:800;white-space:nowrap}
+@media(max-width:560px){.research-top-warning{padding:11px}.research-top-warning a{width:100%}}
