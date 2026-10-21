@@ -106,3 +106,29 @@ def test_all_invalid_daily_rows_do_not_advance_checkpoint(monkeypatch):
         assert checkpoint is not None
         assert checkpoint.checkpoint_value == ""
         assert db.scalar(select(DailyBar.id)) is None
+
+
+def test_partial_invalid_daily_window_is_not_silently_accepted(monkeypatch):
+    def mixed_bars(self, symbol, start_date, end_date):
+        return [
+            {"symbol": symbol, "trade_date": start_date,
+             "open": 10.0, "high": 11.0, "low": 9.0, "close": 10.5,
+             "volume": 1000.0, "amount": 10300.0},
+            {"symbol": symbol, "trade_date": end_date,
+             "open": 10.0, "high": 9.0, "low": 9.2, "close": 10.1,
+             "volume": 1000.0, "amount": 10000.0},
+        ]
+    monkeypatch.setattr(AkshareMarketDataAdapter, "fetch_daily_bars", mixed_bars)
+    with SessionLocal() as db:
+        result = DataSyncService(db).sync_daily(
+            symbols=["000001"], start_date=date(2026, 10, 19),
+            end_date=date(2026, 10, 20),
+        )
+        assert result.status == "failed"
+        assert "invalid bars" in result.error_message
+        assert db.scalar(select(DailyBar.id)) is None
+        checkpoint = db.scalar(select(SyncCheckpoint).where(
+            SyncCheckpoint.job_type == "daily", SyncCheckpoint.scope_key == "000001"
+        ))
+        assert checkpoint is not None
+        assert not checkpoint.checkpoint_value
