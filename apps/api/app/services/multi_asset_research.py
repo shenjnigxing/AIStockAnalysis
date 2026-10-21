@@ -35,7 +35,7 @@ def _features(values: list[float]) -> dict[str, float]:
     return {
         "return_5_pct": round(_pct(values, 5), 6),
         "return_20_pct": round(_pct(values, 20), 6),
-        "return_60_pct": round(_pct(values, 60), 6),
+        "return_60_pct": round(_pct(values, 60), 6) if len(values) >= 61 else None,
         "return_120_pct": round(_pct(values, 120), 6) if len(values) >= 121 else None,
         "realized_volatility_20_pct_per_obs": round(_volatility(values), 6),
         "drawdown_60_pct": round(max(0.0, 100 * (1 - values[-1] / peak)), 6),
