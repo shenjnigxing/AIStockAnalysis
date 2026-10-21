@@ -1,1 +1,1 @@
-"""Local offline/operator tooling; no external API credential required to read cache."""
+"""Local administration commands (never exposed to the browser)."""

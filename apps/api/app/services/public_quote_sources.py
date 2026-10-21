@@ -147,7 +147,7 @@ def fetch_public_quote(kind: str, symbol: str) -> dict[str, Any]:
             source_at = _parse_display_update(display)
             record = row
         elif kind == "futures":
-            rows = _frame_rows(ak.futures_zh_spot(symbol=symbol, market="CF", adjust="0"), 10)
+            rows = _frame_rows(ak.futures_zh_spot(symbol=symbol, market=("FF" if re.match(r"^[A-Z]+", symbol).group() in {"IF", "IH", "IC", "IM", "T", "TF", "TS", "TL"} else "CF"), adjust="0"), 10)
             if len(rows) != 1:
                 raise PublicQuoteSourceError("Futures provider did not return one contract")
             row = rows[0]

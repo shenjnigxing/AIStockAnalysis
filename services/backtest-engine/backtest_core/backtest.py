@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timedelta
 from statistics import mean
 
@@ -31,6 +32,10 @@ def _max_drawdown(equity: list[float]) -> float:
     return mdd
 
 
+class BacktestDataUnavailableError(ValueError):
+    """No sufficient stored observations; never fabricate a real-mode report."""
+
+
 class BacktestService:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -42,8 +47,14 @@ class BacktestService:
         if end_date:
             stmt = stmt.where(DailyBar.trade_date <= end_date)
         bars = list(self.db.scalars(stmt.order_by(DailyBar.trade_date)).all())
+        demo_allowed = (os.getenv("MARKET_DATA_MODE", "real").strip().lower() == "mock"
+                        and os.getenv("APP_ENV", "dev").strip().lower() != "production")
         if bars:
+            if not demo_allowed and len(bars) < 21:
+                raise BacktestDataUnavailableError("At least 21 stored daily bars are required")
             return bars
+        if not demo_allowed:
+            raise BacktestDataUnavailableError("No stored daily bars; real backtests never synthesize prices")
 
         seed_price = 10.0 + (sum(ord(ch) for ch in symbol) % 400) / 100.0
         now = datetime.utcnow()

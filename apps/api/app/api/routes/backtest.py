@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.services.backtest import BacktestService
+from app.services.backtest import BacktestService, BacktestDataUnavailableError
 
 router = APIRouter()
 
@@ -12,7 +12,14 @@ router = APIRouter()
 @router.post("/run")
 def run_backtest(payload: dict, db: Session = Depends(get_db)) -> dict:
     service = BacktestService(db)
-    job = service.run(payload)
+    try:
+        job = service.run(payload)
+    except BacktestDataUnavailableError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (ValueError, TypeError, OverflowError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail="Invalid backtest parameters") from exc
     return {"job_id": job.id, "status": job.status}
 
 

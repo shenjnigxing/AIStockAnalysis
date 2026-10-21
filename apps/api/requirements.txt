@@ -6,3 +6,4 @@ sqlalchemy==2.0.36
 akshare==1.19.1
 yfinance==1.7.0
 pydantic==2.9.2
+tzdata==2026.2

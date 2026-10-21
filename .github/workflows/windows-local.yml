@@ -1,0 +1,44 @@
+name: Windows local startup
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'infra/scripts/**'
+      - 'apps/api/**'
+      - '.github/workflows/windows-local.yml'
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Bootstrap and actual backend regression
+        shell: powershell
+        run: ./infra/scripts/dev_bootstrap.ps1 -RunTests
+      - name: API and Web startup through scripts
+        shell: powershell
+        run: |
+          $shell = (Get-Process -Id $PID).Path
+          $api = Start-Process $shell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File infra/scripts/start_local.ps1 -Service api' -PassThru -RedirectStandardOutput api.log -RedirectStandardError api.err.log
+          $web = Start-Process $shell -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File infra/scripts/start_local.ps1 -Service web' -PassThru -RedirectStandardOutput web.log -RedirectStandardError web.err.log
+          try {
+            $ready = $false
+            for ($i=0; $i -lt 45; $i++) {
+              try { ./infra/scripts/diagnose_local.ps1; $ready = $true; break } catch { Start-Sleep 2 }
+            }
+            if (-not $ready) { throw 'Windows startup did not become healthy' }
+          } finally {
+            taskkill /PID $api.Id /T /F
+            taskkill /PID $web.Id /T /F
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-startup-logs
+          path: '*.log'
