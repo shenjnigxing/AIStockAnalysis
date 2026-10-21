@@ -201,22 +201,28 @@ class DataSyncService:
                     continue
                 fetched_rows = self.adapter.fetch_daily_bars(symbol=symbol, start_date=start, end_date=end)
                 rows = []
+                invalid_count = 0
                 for row in fetched_rows:
                     if not _validate_ohlc_row(row):
+                        invalid_count += 1
                         self.db.add(
                             DataQualityIssue(
                                 issue_type="invalid_ohlc",
                                 symbol=symbol,
-                                detail=f"date={row['trade_date']}",
+                                detail=f"date={row.get('trade_date', 'unknown')}",
                             )
                         )
                         continue
                     rows.append(row)
+                if invalid_count:
+                    # Keep evidence, but do not persist a partial symbol window or
+                    # advance the checkpoint past even one corrupted bar.
+                    self.db.commit()
+                    raise ValueError(
+                        f"Daily data for {symbol} has {invalid_count} invalid bars; "
+                        "window not accepted and checkpoint unchanged"
+                    )
                 total_rows += _upsert_daily_bars(self.db, rows)
-                # Never advance a watermark past a batch consisting only of invalid rows.
-                if fetched_rows and not rows:
-                    self.db.commit()  # Keep quality issue records visible.
-                    raise ValueError(f"All daily rows invalid for {symbol}; checkpoint unchanged")
                 cp.checkpoint_value = end.isoformat()
                 self.db.commit()
             return {"rows": total_rows, "symbols": len(target_symbols)}
