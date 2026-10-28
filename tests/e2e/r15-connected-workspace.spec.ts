@@ -27,6 +27,8 @@ test('market selection connects real-shaped cached history and persisted researc
  await expect(page.getByRole('status')).toContainText('研究记录已保存');
  await page.reload();
  await expect(page.getByRole('table').getByText('测试夹具：等待真实证据',{exact:true})).toBeVisible();
+ await page.getByRole('table',{name:'研究观察池'}).getByRole('button',{name:/^AAPL/}).click();
+ await expect(page.getByLabel('查看采集快照')).toBeVisible();
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/r15-connected-desktop-fixture.png',fullPage:true});
 });
 test('dirty changes need explicit discard and sparse history never draws a trend',async({page})=>{
@@ -34,7 +36,7 @@ test('dirty changes need explicit discard and sparse history never draws a trend
  await page.getByRole('button',{name:'查看 AAPL 市场快照',exact:true}).click();
  await page.getByLabel('研究论点',{exact:true}).fill('不应丢失的草稿');
  await page.getByRole('button',{name:'查看 MSFT 市场快照',exact:true}).click();
- await expect(page.getByRole('alert')).toContainText('当前研究记录有未保存的修改');
+ await expect(page.locator('.rt-unsaved[role=alert]')).toContainText('当前研究记录有未保存的修改');
  await page.getByRole('button',{name:'返回编辑',exact:true}).click();
  await expect(page.getByLabel('研究标的代码',{exact:true})).toHaveValue('AAPL');
  await expect(page.getByLabel('研究论点',{exact:true})).toHaveValue('不应丢失的草稿');
@@ -64,12 +66,12 @@ test('manual lookup and application sidebar protect dirty notebook identity',asy
  await page.getByLabel('研究论点',{exact:true}).fill('保持 AAPL 草稿');
  await page.getByLabel('检查标的代码',{exact:true}).fill('MSFT');
  await page.getByRole('button',{name:'检查快照',exact:true}).click();
- await expect(page.getByRole('alert')).toContainText('当前研究记录有未保存的修改');
+ await expect(page.locator('.rt-unsaved[role=alert]')).toContainText('当前研究记录有未保存的修改');
  await page.getByRole('button',{name:'返回编辑',exact:true}).click();
  await expect(page.getByLabel('研究标的代码',{exact:true})).toHaveValue('AAPL');
- await page.locator('aside.v2-sidebar a').first().click();
+ await page.locator('aside.v2-sidebar a[href="/research/market-data"]').click();
  await expect(page).toHaveURL(/\/research$/);
- await expect(page.getByRole('alert')).toContainText('当前研究记录有未保存的修改');
+ await expect(page.locator('.rt-unsaved[role=alert]')).toContainText('当前研究记录有未保存的修改');
  await page.getByRole('button',{name:'返回编辑',exact:true}).click();
  await expect(page.getByLabel('研究论点',{exact:true})).toHaveValue('保持 AAPL 草稿');
 });
@@ -80,4 +82,14 @@ test('invalid edit clears the previous save confirmation',async({page})=>{
  await page.getByLabel('研究论点',{exact:true}).fill('');await page.getByRole('button',{name:'保存研究记录',exact:true}).click();
  await expect(page.getByText('研究记录已保存到服务器',{exact:true})).toHaveCount(0);
  await expect(page.locator('.rt-editor [role=alert]')).toContainText('不能为空');
+});
+test('browser history navigation recovers the unsaved draft on return',async({page})=>{
+ await setup(page);await page.goto('/research/market-data');await page.locator('aside.v2-sidebar a.v2-nav-link[href="/research"]').click();
+ await page.getByRole('button',{name:'查看 AAPL 市场快照',exact:true}).click();
+ await page.getByLabel('研究论点',{exact:true}).fill('浏览器返回也能找回的草稿');
+ await expect.poll(()=>page.evaluate(()=>sessionStorage.getItem('aistock.research.draft.v1'))).not.toBeNull();
+ await page.goBack();await page.goForward();
+ await expect(page.getByLabel('研究标的代码',{exact:true})).toHaveValue('AAPL');
+ await expect(page.getByLabel('研究论点',{exact:true})).toHaveValue('浏览器返回也能找回的草稿');
+ await expect(page.getByText('有未保存修改',{exact:true})).toBeVisible();
 });

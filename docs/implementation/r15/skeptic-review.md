@@ -43,3 +43,23 @@ Required correction: bring the prompt into view and move focus to its safe actio
 - Re-run existing market/row async race tests plus the added cases; retain fixture-vs-real-API evidence separation.
 
 No P0 trading bypass or fabricated numeric output was identified in the reviewed frontend diff. That is a scoped review observation, not a broad security or investment-quality certification.
+
+## Independent second pass
+
+Reviewed correction `fc21741` (same frontend correction integrated in root `642a349`). This pass again inspected the implemented event/state paths; it did not execute a browser.
+
+| Finding | Source review result |
+|---|---|
+| S15-01 | Corrected for reviewed paths. Lookup text is separate from selected identity. Committing a new lookup uses guarded `openInstrument`; draft-code changes invalidate old quote/history. |
+| S15-02 | Corrected. New-note clears selected evidence and candidate lookup applies the same instrument context before showing evidence. |
+| S15-03 | Corrected for ordinary sidebar/header/internal link clicks. Document capture runs before Next Link navigation and preserves input until explicit discard. Browser history navigation remains a separate gap below. |
+| S15-04 | Corrected. Save clears notices before validation; delete clears old mutation status before request. |
+| S15-05 | Corrected in source. Prompt scrolls into view, receives programmatic focus, and cancel restores the triggering element. Actual browser focus/visibility remains an e2e check. |
+
+### S15-06 — P1: browser Back/Forward does not pass either navigation guard
+
+A dirty draft is protected by captured document link clicks and `beforeunload`. App Router back/forward navigation can be a same-document `popstate` navigation, firing neither event. A user who entered from another in-app page can still lose a dirty draft by pressing the browser Back button. The revised code has no `popstate` handler or recoverable draft persistence.
+
+Required correction: preserve and offer recovery of unsaved drafts across same-tab history navigation (for example session-scoped storage with a visible recovery decision), or implement tested history navigation protection. Add a real-browser case that navigates to research from another app route, edits a draft, presses Back and returns; the input must be recoverable. Any sensitive local persistence choice should remain scoped to this personal local research product and documented accurately.
+
+Until S15-06 is corrected or explicitly deferred as a known limitation, the broad claim “unsaved work cannot be lost through navigation” is not supported. The five initial findings are otherwise corrected at the source-review level; browser CI must still verify their actual behavior.
