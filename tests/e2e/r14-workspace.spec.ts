@@ -27,8 +27,8 @@ test('workspace saves thesis and reloads persisted server notes',async({page})=>
  await page.getByRole('button',{name:'保存研究记录',exact:true}).click();
  await expect(page.getByRole('status')).toContainText('研究记录已保存');
  await page.reload();
- await expect(page.getByRole('table').getByText('AAPL',{exact:true})).toBeVisible();
- await page.getByRole('table').getByText('AAPL',{exact:true}).click();
+ await expect(page.getByRole('table').getByRole('button',{name:/^AAPL/})).toBeVisible();
+ await page.getByRole('table').getByRole('button',{name:/^AAPL/}).click();
  await expect(page.getByLabel('研究论点',{exact:true})).toHaveValue('人工测试论点，非实际投资判断');
  await page.getByLabel('研究论点',{exact:true}).fill('修改后的测试论点');
  await page.getByRole('button',{name:'保存研究记录',exact:true}).click();
@@ -53,7 +53,7 @@ test('stale quote cannot overwrite a new selected market and mobile has no docum
 test('failed note save never displays a success message',async({page})=>{
  await page.route('**/api/research/v3/watchlist',r=>r.request().method()==='GET'?r.fulfill({json:{items:[]}}):r.fulfill({status:403,json:{detail:'Origin rejected'}}));
  await page.goto('/research');await page.getByLabel('研究标的代码',{exact:true}).fill('AAPL');await page.getByLabel('研究论点',{exact:true}).fill('fixture');await page.getByRole('button',{name:'保存研究记录',exact:true}).click();
- await expect(page.getByRole('alert')).toContainText('Origin rejected');await expect(page.getByText('研究记录已保存到服务器',{exact:true})).toHaveCount(0);
+ await expect(page.locator('.rt-error[role=alert]')).toContainText('Origin rejected');await expect(page.getByText('研究记录已保存到服务器',{exact:true})).toHaveCount(0);
 });
 
 test('saving notes locks market and horizon until the response completes',async({page})=>{
