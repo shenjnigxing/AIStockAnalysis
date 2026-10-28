@@ -3,8 +3,9 @@ import os
 import math
 from datetime import date, datetime, timedelta
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, select, func
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -190,20 +191,30 @@ class DataSyncService:
     def sync_daily(self, symbols: list[str] | None, start_date: date | None, end_date: date | None) -> SyncJob:
         def runner(_: SyncJob) -> dict[str, Any]:
             target_symbols = symbols or _list_symbols(self.db)
-            end = end_date or date.today()
+            end = end_date or datetime.now(ZoneInfo("Asia/Shanghai")).date()
             total_rows = 0
             for symbol in target_symbols:
                 cp = _get_or_create_checkpoint(self.db, "daily", symbol)
                 default_start = date.today() - timedelta(days=7)
-                from_cp = date.fromisoformat(cp.checkpoint_value) + timedelta(days=1) if cp.checkpoint_value else default_start
+                # There is no verified exchange calendar/gap queue yet. Conservatively
+                # replay from the oldest stored observation instead of advancing beyond
+                # unknown missing days. The watermark is NOT a completeness certificate.
+                oldest = self.db.scalar(select(func.min(DailyBar.trade_date)).where(DailyBar.symbol == symbol))
+                from_cp = min(oldest, default_start) if oldest else default_start
                 start = start_date or from_cp
                 if start > end:
                     continue
                 fetched_rows = self.adapter.fetch_daily_bars(symbol=symbol, start_date=start, end_date=end)
                 rows = []
                 invalid_count = 0
+                prior_date = None
+                today = datetime.now(ZoneInfo("Asia/Shanghai")).date()
                 for row in fetched_rows:
-                    if not _validate_ohlc_row(row):
+                    trade_date = row.get("trade_date")
+                    valid_date = (type(trade_date) is date and start <= trade_date <= end
+                                  and trade_date <= today
+                                  and (prior_date is None or trade_date > prior_date))
+                    if not valid_date or row.get("symbol") != symbol or not _validate_ohlc_row(row):
                         invalid_count += 1
                         self.db.add(
                             DataQualityIssue(
@@ -214,6 +225,7 @@ class DataSyncService:
                         )
                         continue
                     rows.append(row)
+                    prior_date = trade_date
                 if invalid_count:
                     # Keep evidence, but do not persist a partial symbol window or
                     # advance the checkpoint past even one corrupted bar.
@@ -223,9 +235,15 @@ class DataSyncService:
                         "window not accepted and checkpoint unchanged"
                     )
                 total_rows += _upsert_daily_bars(self.db, rows)
-                cp.checkpoint_value = end.isoformat()
+                completed_days = [row["trade_date"] for row in rows if row["trade_date"] < today]
+                if completed_days:
+                    stored_end = self.db.scalar(select(func.max(DailyBar.trade_date)).where(
+                        DailyBar.symbol == symbol, DailyBar.trade_date < today))
+                    actual_end = max(completed_days + ([stored_end] if stored_end else []))
+                    cp.checkpoint_value = actual_end.isoformat()
                 self.db.commit()
-            return {"rows": total_rows, "symbols": len(target_symbols)}
+            return {"rows": total_rows, "symbols": len(target_symbols),
+                    "coverage_verified": False, "revision_policy": "replay_from_oldest_observation"}
 
         params = {"symbols": symbols, "start_date": start_date, "end_date": end_date}
         return self._run_job("daily", params, runner)

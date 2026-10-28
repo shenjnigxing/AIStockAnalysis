@@ -547,3 +547,25 @@ class PublicQuoteFetchAttempt(Base):
     duration_ms: Mapped[int] = mapped_column(Integer)
     state: Mapped[str] = mapped_column(String(24))
     error_code: Mapped[str] = mapped_column(String(64), default="")
+
+
+class ResearchWatchItem(Base):
+    __tablename__ = "research_watch_items"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(32))
+    symbol: Mapped[str] = mapped_column(String(32))
+    thesis: Mapped[str] = mapped_column(Text, default="")
+    counter_thesis: Mapped[str] = mapped_column(Text, default="")
+    invalidation: Mapped[str] = mapped_column(Text, default="")
+    sector: Mapped[str] = mapped_column(String(100), default="")
+    horizon: Mapped[str] = mapped_column(String(32), default="medium_long")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PaperIdempotency(Base):
+    """Unique reservation and order outcome commit atomically with paper effects."""
+    __tablename__ = "paper_idempotency"
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    request_sha256: Mapped[str] = mapped_column(String(64))
+    order_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

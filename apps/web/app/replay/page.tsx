@@ -55,7 +55,7 @@ export default async function ReplayPage({ searchParams }: ReplayPageProps) {
           {days.length > 0 ? (
             <div className="portalQuickGrid">
               {days.slice(0, 10).map((day) => (
-                <Link key={day} href={`/replay${buildReplayQuery({ day })}`}>
+                <Link key={day} href={`/replay${buildReplayQuery({ ...filters, day })}`}>
                   {day}
                 </Link>
               ))}
@@ -75,14 +75,14 @@ export default async function ReplayPage({ searchParams }: ReplayPageProps) {
           ) : null}
           {selectedDay ? (
             <div className="portalQuickGrid">
-              <Link href={`/replay${buildReplayQuery({ day: selectedDay, source_type: "recommendation" })}`}>仅推荐</Link>
-              <Link href={`/replay${buildReplayQuery({ day: selectedDay, source_type: "paper_order" })}`}>仅仿真</Link>
-              <Link href={`/replay${buildReplayQuery({ day: selectedDay, source_type: "live_order" })}`}>仅实盘</Link>
-              <Link href={`/replay${buildReplayQuery({ day: selectedDay, source_type: "risk_event" })}`}>仅风控</Link>
-              <Link href={`/replay${buildReplayQuery({ day: selectedDay, recommendation_level: "A" })}`}>等级A</Link>
-              <Link href={`/replay${buildReplayQuery({ day: selectedDay, outcome: "filled" })}`}>结果filled</Link>
-              <Link href={`/replay${buildReplayQuery({ day: selectedDay, symbol: "000001" })}`}>股票000001</Link>
-              <Link href={`/replay${buildReplayQuery({ day: selectedDay, strategy_key: "platform_breakout" })}`}>战法平台突破</Link>
+              <Link href={`/replay${buildReplayQuery({ ...filters, day: selectedDay, source_type: "recommendation" })}`}>仅推荐</Link>
+              <Link href={`/replay${buildReplayQuery({ ...filters, day: selectedDay, source_type: "paper_order" })}`}>仅仿真</Link>
+              <Link href={`/replay${buildReplayQuery({ ...filters, day: selectedDay, source_type: "live_order" })}`}>仅实盘</Link>
+              <Link href={`/replay${buildReplayQuery({ ...filters, day: selectedDay, source_type: "risk_event" })}`}>仅风控</Link>
+              <Link href={`/replay${buildReplayQuery({ ...filters, day: selectedDay, recommendation_level: "A" })}`}>等级A</Link>
+              <Link href={`/replay${buildReplayQuery({ ...filters, day: selectedDay, outcome: "filled" })}`}>结果filled</Link>
+              <Link href={`/replay${buildReplayQuery({ ...filters, day: selectedDay, symbol: "000001" })}`}>股票000001</Link>
+              <Link href={`/replay${buildReplayQuery({ ...filters, day: selectedDay, strategy_key: "platform_breakout" })}`}>战法平台突破</Link>
               <a
                 href={`${apiBase}/api/replay/export/${selectedDay}${buildReplayQuery({
                   source_type: filters.source_type || "",

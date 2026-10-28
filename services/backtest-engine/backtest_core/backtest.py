@@ -1,6 +1,8 @@
 import json
 import os
-from datetime import datetime, timedelta
+import math
+from datetime import date, datetime, timedelta
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from statistics import mean
 
 from sqlalchemy import select
@@ -8,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import BacktestEquityCurve, BacktestJob, BacktestReport, BacktestTrade, DailyBar
 from app.services.audit import write_audit
+from app.services.research_gate import require_legacy_research_eligibility, research_contract
 
 
 def _clip(value: float, low: float, high: float) -> float:
@@ -30,6 +33,31 @@ def _max_drawdown(equity: list[float]) -> float:
         if peak > 0:
             mdd = max(mdd, (peak - value) / peak)
     return mdd
+
+
+class BacktestParameters(BaseModel):
+    """Shared HTTP/service contract; reject instead of clipping invalid finance inputs."""
+    model_config = ConfigDict(extra="forbid")
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    type: str = Field(default="strategy", min_length=1, max_length=40)
+    symbol: str = Field(default="000001", min_length=1, max_length=36, pattern=r"^[A-Za-z0-9_.-]+$")
+    start_date: date | None = None
+    end_date: date | None = None
+    initial_cash: float = Field(default=1_000_000, gt=0, le=1e12, allow_inf_nan=False)
+    commission: float = Field(default=.0003, ge=0, le=.05, allow_inf_nan=False)
+    stamp_tax: float = Field(default=.001, ge=0, le=.05, allow_inf_nan=False)
+    slippage: float = Field(default=.0008, ge=0, le=.1, allow_inf_nan=False)
+    position_limit: float = Field(default=.3, gt=0, le=1, allow_inf_nan=False)
+    stop_loss: float = Field(default=.06, gt=0, le=.5, allow_inf_nan=False)
+    take_profit: float = Field(default=.14, gt=0, le=10, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def validate_dates(self):
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValueError("start_date must not be later than end_date")
+        if (self.start_date and self.start_date > date.today()) or (self.end_date and self.end_date > date.today()):
+            raise ValueError("Future backtest dates are not allowed")
+        return self
 
 
 class BacktestDataUnavailableError(ValueError):
@@ -83,144 +111,90 @@ class BacktestService:
         return mock
 
     def run(self, payload: dict) -> BacktestJob:
-        name = payload.get("name", f"backtest-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
-        job = BacktestJob(name=name, job_type=payload.get("type", "strategy"), params_json=json.dumps(payload, ensure_ascii=True))
+        require_legacy_research_eligibility()
+        params = BacktestParameters.model_validate(payload)
+        payload = params.model_dump(mode="json")
+        name = params.name or f"backtest-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        symbol = params.symbol
+        bars = self._load_bars(symbol, payload["start_date"], payload["end_date"])
+        if any(not math.isfinite(float(v)) or round(float(v), 4) <= 0 for bar in bars for v in (bar.open, bar.close)):
+            raise BacktestDataUnavailableError("Open/close prices must be finite and positive")
+        job = BacktestJob(name=name, job_type=params.type, params_json=json.dumps(payload, ensure_ascii=True))
         self.db.add(job)
         self.db.flush()
-
-        symbol = str(payload.get("symbol", "000001"))
-        start_date = payload.get("start_date")
-        end_date = payload.get("end_date")
-        bars = self._load_bars(symbol=symbol, start_date=start_date, end_date=end_date)
-
-        init_cash = float(payload.get("initial_cash", 1_000_000))
-        commission_rate = float(payload.get("commission", 0.0003))
-        stamp_tax_rate = float(payload.get("stamp_tax", 0.001))
-        slippage_rate = float(payload.get("slippage", 0.0008))
-        position_limit = _clip(float(payload.get("position_limit", 0.3)), 0.05, 1.0)
-        stop_loss = _clip(float(payload.get("stop_loss", 0.06)), 0.01, 0.5)
-        take_profit = _clip(float(payload.get("take_profit", 0.14)), 0.01, 1.0)
-
-        cash = init_cash
-        quantity = 0
-        avg_price = 0.0
-        holding_days = 0
-        turnover_amount = 0.0
-        fee_total = 0.0
-        win_trades = 0
-        loss_trades = 0
-        trade_profits: list[float] = []
-        equity_curve: list[float] = []
-        benchmark_curve: list[float] = []
+        init_cash = params.initial_cash
+        commission_rate, stamp_tax_rate, slippage_rate = params.commission, params.stamp_tax, params.slippage
+        position_limit, stop_loss, take_profit = params.position_limit, params.stop_loss, params.take_profit
+        cash, quantity, avg_price = init_cash, 0, 0.0
+        entry_cost, entry_idx = 0.0, None
+        turnover_amount, fee_total = 0.0, 0.0
+        win_trades, loss_trades = 0, 0
+        trade_profits, holding_periods = [], []
+        equity_curve, benchmark_curve = [], []
         total_trade_days = max(1, len(bars))
+        closes = [float(bar.close) for bar in bars]
+        pending = None
 
-        closes = [bar.close for bar in bars]
-        for idx, bar in enumerate(bars):
-            current_close = float(bar.close)
-            benchmark_curve.append(current_close)
-            ma5 = mean(closes[max(0, idx - 4): idx + 1])
-            ma20 = mean(closes[max(0, idx - 19): idx + 1])
-            momentum = ((current_close - closes[max(0, idx - 5)]) / max(closes[max(0, idx - 5)], 1e-6)) if idx >= 5 else 0.0
-
-            signal_buy = quantity == 0 and idx >= 20 and current_close > ma5 > ma20 and momentum > 0.01
-            stop_by_loss = quantity > 0 and current_close <= avg_price * (1 - stop_loss)
-            stop_by_gain = quantity > 0 and current_close >= avg_price * (1 + take_profit)
-            trend_break = quantity > 0 and current_close < ma20
-            signal_sell = stop_by_loss or stop_by_gain or trend_break
-
-            if signal_buy:
-                order_cash = (cash + quantity * current_close) * position_limit
-                exec_price = current_close * (1 + slippage_rate)
-                buy_qty = int(order_cash / max(exec_price, 1e-6) // 100 * 100)
-                if buy_qty > 0:
-                    gross = buy_qty * exec_price
-                    commission = max(5.0, gross * commission_rate)
-                    total_cost = gross + commission
-                    if total_cost <= cash:
-                        cash -= total_cost
-                        quantity += buy_qty
-                        avg_price = exec_price
-                        turnover_amount += gross
-                        fee_total += commission
-                        self.db.add(
-                            BacktestTrade(
-                                job_id=job.id,
-                                symbol=symbol,
-                                side="buy",
-                                price=round(exec_price, 4),
-                                quantity=buy_qty,
-                                trade_time=datetime.combine(bar.trade_date, datetime.min.time()),
-                            )
-                        )
-
-            elif signal_sell and quantity > 0:
-                exec_price = current_close * (1 - slippage_rate)
-                gross = quantity * exec_price
-                commission = max(5.0, gross * commission_rate)
-                stamp = gross * stamp_tax_rate
-                net = gross - commission - stamp
-                pnl = net - quantity * avg_price
-                cash += net
-                turnover_amount += gross
-                fee_total += commission + stamp
-                if pnl >= 0:
-                    win_trades += 1
-                else:
-                    loss_trades += 1
-                trade_profits.append(pnl)
-                self.db.add(
-                    BacktestTrade(
-                        job_id=job.id,
-                        symbol=symbol,
-                        side="sell",
-                        price=round(exec_price, 4),
-                        quantity=quantity,
-                        trade_time=datetime.combine(bar.trade_date, datetime.min.time()),
-                    )
-                )
-                quantity = 0
-                avg_price = 0.0
-                holding_days = 0
-
-            if quantity > 0:
-                holding_days += 1
-            equity = cash + quantity * current_close
-            equity_curve.append(round(equity, 2))
-            self.db.add(
-                BacktestEquityCurve(
-                    job_id=job.id,
-                    point_time=datetime.combine(bar.trade_date, datetime.min.time()),
-                    equity=round(equity, 2),
-                )
-            )
-
-        if quantity > 0:
-            final_close = float(bars[-1].close)
-            exec_price = final_close * (1 - slippage_rate)
+        def sell(price: float, idx: int, at: datetime):
+            nonlocal cash, quantity, avg_price, entry_cost, turnover_amount, fee_total, win_trades, loss_trades, entry_idx
+            exec_price = round(price * (1 - slippage_rate), 4)
             gross = quantity * exec_price
             commission = max(5.0, gross * commission_rate)
             stamp = gross * stamp_tax_rate
             net = gross - commission - stamp
-            pnl = net - quantity * avg_price
+            # Entry cost includes the original buy commission.
+            pnl = net - entry_cost
             cash += net
             turnover_amount += gross
             fee_total += commission + stamp
-            if pnl >= 0:
-                win_trades += 1
-            else:
-                loss_trades += 1
+            win_trades += int(pnl >= 0)
+            loss_trades += int(pnl < 0)
             trade_profits.append(pnl)
-            self.db.add(
-                BacktestTrade(
-                    job_id=job.id,
-                    symbol=symbol,
-                    side="sell",
-                    price=round(exec_price, 4),
-                    quantity=quantity,
-                    trade_time=datetime.combine(bars[-1].trade_date, datetime.min.time()),
-                )
-            )
-            quantity = 0
+            holding_periods.append(idx - entry_idx if entry_idx is not None else 0)
+            self.db.add(BacktestTrade(job_id=job.id, symbol=symbol, side="sell", price=exec_price,
+                                      quantity=quantity, trade_time=at))
+            quantity, avg_price, entry_cost, entry_idx = 0, 0.0, 0.0, None
+
+        for idx, bar in enumerate(bars):
+            current_close = float(bar.close)
+            benchmark_curve.append(current_close)
+            # Only yesterday's complete signal may trade at today's open.
+            if pending == "sell" and quantity:
+                sell(float(bar.open), idx, datetime.combine(bar.trade_date, datetime.min.time()).replace(hour=9, minute=30))
+            elif pending == "buy" and not quantity and idx < len(bars) - 1:
+                exec_price = round(float(bar.open) * (1 + slippage_rate), 4)
+                order_cash = cash * position_limit
+                buy_qty = int(order_cash / exec_price // 100 * 100)
+                while buy_qty > 0:
+                    gross = buy_qty * exec_price
+                    commission = max(5.0, gross * commission_rate)
+                    if gross + commission <= cash:
+                        break
+                    buy_qty -= 100
+                if buy_qty > 0:
+                    entry_cost = gross + commission
+                    cash -= entry_cost
+                    quantity, avg_price, entry_idx = buy_qty, exec_price, idx
+                    turnover_amount += gross
+                    fee_total += commission
+                    self.db.add(BacktestTrade(job_id=job.id, symbol=symbol, side="buy", price=exec_price,
+                        quantity=buy_qty, trade_time=datetime.combine(bar.trade_date, datetime.min.time()).replace(hour=9, minute=30)))
+            pending = None
+            # Forced liquidation is performed BEFORE persisting final equity.
+            if idx == len(bars) - 1 and quantity:
+                sell(current_close, idx, datetime.combine(bar.trade_date, datetime.min.time()).replace(hour=15))
+            equity = cash + quantity * current_close
+            equity_curve.append(round(equity, 2))
+            self.db.add(BacktestEquityCurve(job_id=job.id,
+                point_time=datetime.combine(bar.trade_date, datetime.min.time()).replace(hour=15), equity=round(equity, 2)))
+            if idx < len(bars) - 1:
+                ma5 = mean(closes[max(0, idx - 4):idx + 1])
+                ma20 = mean(closes[max(0, idx - 19):idx + 1])
+                momentum = current_close / closes[max(0, idx - 5)] - 1 if idx >= 5 else 0.0
+                if quantity and (current_close <= avg_price * (1-stop_loss) or current_close >= avg_price * (1+take_profit) or current_close < ma20):
+                    pending = "sell"
+                elif not quantity and idx >= 20 and current_close > ma5 > ma20 and momentum > .01:
+                    pending = "buy"
 
         total_return = (equity_curve[-1] - init_cash) / max(init_cash, 1e-6) if equity_curve else 0.0
         benchmark_return = (
@@ -237,9 +211,9 @@ class BacktestService:
         downside_vol = _std(downside_returns) * (252 ** 0.5) if downside_returns else 0.0
         annual_return = (1 + total_return) ** (252 / max(total_trade_days, 1)) - 1 if total_trade_days > 0 else 0.0
         max_dd = _max_drawdown(equity_curve)
-        sharpe = annual_return / max(volatility, 1e-6)
-        sortino = annual_return / max(downside_vol, 1e-6)
-        calmar = annual_return / max(max_dd, 1e-6)
+        sharpe = annual_return / volatility if len(daily_returns) >= 2 and volatility > 1e-12 else None
+        sortino = annual_return / downside_vol if len(downside_returns) >= 2 and downside_vol > 1e-12 else None
+        calmar = annual_return / max_dd if max_dd > 1e-12 else None
         total_trades = win_trades + loss_trades
         win_rate = (win_trades / total_trades) if total_trades else 0.0
         avg_profit = mean([value for value in trade_profits if value > 0]) if any(value > 0 for value in trade_profits) else 0.0
@@ -254,19 +228,23 @@ class BacktestService:
             "max_drawdown": round(max_dd, 4),
             "volatility": round(volatility, 4),
             "downside_volatility": round(downside_vol, 4),
-            "sharpe": round(sharpe, 4),
-            "sortino": round(sortino, 4),
-            "calmar": round(calmar, 4),
+            "sharpe": round(sharpe, 4) if sharpe is not None else None,
+            "sortino": round(sortino, 4) if sortino is not None else None,
+            "sortino_status": "available" if sortino is not None else "insufficient_downside_observations",
+            "execution_model": "previous_close_signal_next_open_v1",
+            "final_cash": round(cash, 2),
+            "calmar": round(calmar, 4) if calmar is not None else None,
             "win_rate": round(win_rate, 4),
             "pnl_ratio": round(pnl_ratio, 4),
             "turnover": round(turnover_amount / max(init_cash, 1e-6), 4),
-            "avg_holding_days": round((holding_days / max(total_trades, 1)), 2),
+            "avg_holding_days": round(mean(holding_periods), 2) if holding_periods else 0.0,
             "total_trades": total_trades,
             "slippage_impact": round(slippage_rate, 4),
             "cost_impact": round(fee_total / max(init_cash, 1e-6), 4),
             "capacity_hint": "low" if turnover_amount < init_cash * 1.2 else "medium" if turnover_amount < init_cash * 3.0 else "high",
         }
-        report = BacktestReport(job_id=job.id, metrics_json=json.dumps(metrics, ensure_ascii=True))
+        metrics.update(research_contract())
+        report = BacktestReport(job_id=job.id, metrics_json=json.dumps(metrics, ensure_ascii=True, allow_nan=False))
         self.db.add(report)
         write_audit(
             self.db,
@@ -278,18 +256,23 @@ class BacktestService:
         return job
 
     def jobs(self) -> list[BacktestJob]:
+        require_legacy_research_eligibility()
         return list(self.db.scalars(select(BacktestJob).order_by(BacktestJob.created_at.desc())).all())
 
     def report(self, job_id: int) -> BacktestReport | None:
+        require_legacy_research_eligibility()
         return self.db.scalar(select(BacktestReport).where(BacktestReport.job_id == job_id))
 
     def trades(self, job_id: int) -> list[BacktestTrade]:
+        require_legacy_research_eligibility()
         return list(self.db.scalars(select(BacktestTrade).where(BacktestTrade.job_id == job_id)).all())
 
     def equity(self, job_id: int) -> list[BacktestEquityCurve]:
+        require_legacy_research_eligibility()
         return list(self.db.scalars(select(BacktestEquityCurve).where(BacktestEquityCurve.job_id == job_id)).all())
 
     def report_detail(self, job_id: int) -> dict | None:
+        require_legacy_research_eligibility()
         report = self.report(job_id)
         if report is None:
             return None

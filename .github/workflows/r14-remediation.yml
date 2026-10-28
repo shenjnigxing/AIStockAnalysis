@@ -1,0 +1,44 @@
+name: R14 remediation and workspace acceptance
+on:
+  push:
+    branches: [feat/r14-remediation-workspace]
+  pull_request:
+    paths: ['apps/**', 'services/**', 'tests/e2e/r14*', '.github/workflows/r14-remediation.yml']
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: 'sqlite:///:memory:'
+      PYTHONPATH: apps/api
+      API_BASE_URL: http://127.0.0.1:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install -r apps/api/requirements.txt
+      - run: python -m pytest -q apps/api/tests tests/unit
+      - run: npm ci && npm ci --prefix apps/web
+      - run: node tests/unit/ops_security.cjs
+      - run: npm run build --prefix apps/web && npm audit --prefix apps/web --omit=dev --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      - name: Start real API
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 >/tmp/api.log 2>&1 &
+          for i in $(seq 1 30); do if curl -fsS http://127.0.0.1:8000/health; then exit 0; fi; sleep 1; done
+          cat /tmp/api.log
+          exit 1
+      - run: npx playwright test tests/e2e/r14-workspace.spec.ts tests/e2e/r14-notebook.integration.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r14-workspace-browser-evidence
+          path: |
+            test-results/
+            playwright-report/

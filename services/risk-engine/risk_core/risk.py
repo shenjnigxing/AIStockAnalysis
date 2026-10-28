@@ -24,15 +24,22 @@ DEFAULT_RISK_CONFIG = {
 
 
 class RiskService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, *, atomic: bool = False) -> None:
         self.db = db
+        self.atomic = atomic
+
+    def _persist(self) -> None:
+        if self.atomic:
+            self.db.flush()
+        else:
+            self.db.commit()
 
     def get_config(self) -> RiskConfig:
         conf = self.db.scalar(select(RiskConfig).order_by(desc(RiskConfig.updated_at)))
         if conf is None:
             conf = RiskConfig(config_json=json.dumps(DEFAULT_RISK_CONFIG, ensure_ascii=True))
             self.db.add(conf)
-            self.db.commit()
+            self._persist()
             self.db.refresh(conf)
         return conf
 
@@ -41,7 +48,7 @@ class RiskService:
         conf.config_json = json.dumps(payload, ensure_ascii=True)
         conf.updated_at = datetime.utcnow()
         write_audit(self.db, action="risk.config_update", detail="updated=true")
-        self.db.commit()
+        self._persist()
         self.db.refresh(conf)
         return conf
 
@@ -64,7 +71,7 @@ class RiskService:
         conf["live_auto_submit"] = bool(payload.get("live_auto_submit", conf.get("live_auto_submit", False)))
         row = self.update_config(conf)
         write_audit(self.db, action="risk.live_gray_update", detail="updated=true")
-        self.db.commit()
+        self._persist()
         return json.loads(row.config_json)
 
     def status(self) -> dict:
@@ -202,7 +209,7 @@ class RiskService:
                     "is_live": channel == "live",
                 },
             )
-        self.db.commit()
+        self._persist()
         return {
             "decision": decision,
             "summary": f"risk decision for {symbol}",
@@ -238,6 +245,6 @@ class RiskService:
             ks.updated_at = datetime.utcnow()
         action = "risk.kill_switch_enable" if enabled else "risk.kill_switch_disable"
         write_audit(self.db, action=action, detail=f"enabled={enabled}; reason={reason}")
-        self.db.commit()
+        self._persist()
         self.db.refresh(ks)
         return ks

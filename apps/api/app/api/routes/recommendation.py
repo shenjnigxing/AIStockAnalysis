@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
@@ -8,11 +8,22 @@ from app.api.deps import get_db
 from app.db.models import RecommendationResult, RecommendationRun
 from app.services.recommendation import RecommendationService
 
-router = APIRouter()
+from app.services.research_gate import require_legacy_research_eligibility, ResearchEligibilityError, research_contract
+
+
+def _gate():
+    try:
+        require_legacy_research_eligibility()
+    except ResearchEligibilityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+router = APIRouter(dependencies=[Depends(_gate)])
 
 
 def _serialize(row: RecommendationResult) -> dict:
     return {
+        **research_contract(), "analysis_time": row.created_at.isoformat() + "Z",
         "symbol": row.symbol,
         "final_rank": row.final_rank,
         "recommendation_level": row.recommendation_level,
@@ -26,7 +37,7 @@ def _serialize(row: RecommendationResult) -> dict:
         "counter_arguments": json.loads(row.counter_arguments),
         "risk_tags": json.loads(row.risk_tags),
         "action_suggestion": row.action_suggestion,
-        "confidence_level": row.confidence_level,
+        "confidence_level": None, "uncalibrated_score": row.confidence_level,
     }
 
 
@@ -39,6 +50,7 @@ def run_recommendation(payload: dict, db: Session = Depends(get_db)) -> dict:
         llm_provider=payload.get("llm_provider"),
     )
     return {
+        **research_contract(),
         "recommendation_run_id": run.id,
         "status": run.status,
         "llm_provider": meta.llm_provider,
@@ -54,7 +66,7 @@ def recommendation_latest(db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/top")
-def recommendation_top(limit: int = 20, db: Session = Depends(get_db)) -> dict:
+def recommendation_top(limit: int = Query(default=20, ge=1, le=200), db: Session = Depends(get_db)) -> dict:
     service = RecommendationService(db)
     items = service.latest()[:limit]
     return {"items": [_serialize(i) for i in items], "count": len(items)}
@@ -63,7 +75,7 @@ def recommendation_top(limit: int = 20, db: Session = Depends(get_db)) -> dict:
 @router.get("/history/list")
 def recommendation_history(db: Session = Depends(get_db)) -> dict:
     runs = list(db.scalars(select(RecommendationRun).order_by(desc(RecommendationRun.created_at)).limit(20)).all())
-    return {"items": [{"id": r.id, "status": r.status, "market_state": r.market_state, "created_at": r.created_at.isoformat()} for r in runs]}
+    return {**research_contract(), "items": [{"id": r.id, "status": r.status, "market_state": r.market_state, "created_at": r.created_at.isoformat()} for r in runs]}
 
 
 @router.get("/history")

@@ -16,7 +16,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.models import PublicQuoteSnapshot, PublicQuoteFetchAttempt
-from app.services.public_quote_sources import SOURCES, PublicQuoteSourceError, fetch_public_quote
+from app.services.public_quote_sources import SOURCES, PublicQuoteSourceError, fetch_public_quote, source_spec, verify_futures_identity
 
 
 REFRESH_LOCK = threading.Lock()
@@ -126,7 +126,7 @@ def _last_attempt(db: Session, kind: str, symbol: str) -> PublicQuoteFetchAttemp
 
 def _verify(row: PublicQuoteSnapshot) -> None:
     """Detect accidental data/metadata edits before a cache value is exposed."""
-    spec = SOURCES.get(row.kind)
+    spec = source_spec(row.kind, row.symbol) if row.kind in SOURCES else None
     if not spec or row.source_id != spec["source_id"] or row.asset_class != spec["asset_class"] or row.product_type != spec["product_type"]:
         raise QuoteIntegrityError("Quote source identity changed")
     if row.metric != spec["metric"] or row.unit != spec["unit"] or row.currency != spec["currency"]:
@@ -136,6 +136,11 @@ def _verify(row: PublicQuoteSnapshot) -> None:
         raise QuoteIntegrityError("Quote timestamp quality is inconsistent")
     if row.time_quality not in ("provider_update_timestamp", "bar_timestamp", "daily_observation", "time_unverified"):
         raise QuoteIntegrityError("Unknown quote time quality")
+    if row.kind == "futures":
+        try:
+            verify_futures_identity(json.loads(row.source_record_json), row.symbol)
+        except (PublicQuoteSourceError, ValueError, TypeError, AttributeError) as exc:
+            raise QuoteIntegrityError("Cached futures identity is unverified; recollect from a verifiable source") from exc
     if _sha(row.source_record_json) != row.source_record_sha256:
         raise QuoteIntegrityError("Provider record content changed")
     payload = {
@@ -199,7 +204,7 @@ def quote_status(db: Session) -> dict[str, Any]:
         ).order_by(PublicQuoteFetchAttempt.id.desc()).limit(1))
         result.append({
             "kind": kind, "source_id": spec["source_id"],
-            "metric": spec["metric"], "unit": spec["unit"],
+            "metric": spec["metric"], "unit": "instrument_specific" if kind == "sge_gold" else spec["unit"],
             "currency": spec["currency"],
             "cooldown_seconds": spec["cooldown"],
             "has_cached_snapshot": row is not None,
@@ -236,7 +241,7 @@ def refresh_quote(db: Session, *, kind: str, symbol: str) -> dict[str, Any]:
             raise QuoteBusy("cooldown_after_recent_failure")
         try:
             data = fetch_supervised(kind, symbol)
-            spec = SOURCES[kind]
+            spec = source_spec(kind, symbol)
             value = float(data["value"])
             if not (0 < value < 1_000_000_000) or not math.isfinite(value):
                 raise QuoteUnavailable("invalid_quote_value")
@@ -251,6 +256,8 @@ def refresh_quote(db: Session, *, kind: str, symbol: str) -> dict[str, Any]:
                 raise QuoteUnavailable("inconsistent_timestamp_quality")
             collected_at = _now()
             source_text = str(data.get("source_display_time", ""))[:96]
+            if kind == "futures":
+                verify_futures_identity(data["source_record"], symbol)
             record = _canonical(data["source_record"])
             if len(record.encode("utf-8")) > 32_000:
                 raise QuoteUnavailable("oversized_source_record")
