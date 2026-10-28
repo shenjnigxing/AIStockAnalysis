@@ -93,3 +93,12 @@ test('browser history navigation recovers the unsaved draft on return',async({pa
  await expect(page.getByLabel('研究论点',{exact:true})).toHaveValue('浏览器返回也能找回的草稿');
  await expect(page.getByText('有未保存修改',{exact:true})).toBeVisible();
 });
+test('explicitly discarded draft is not recovered on a later visit',async({page})=>{
+ await setup(page);await page.goto('/research');await page.getByLabel('研究标的代码',{exact:true}).fill('AAPL');await page.getByLabel('研究论点',{exact:true}).fill('明确丢弃的草稿');
+ await page.locator('aside.v2-sidebar a[href="/research/market-data"]').click();
+ await page.getByRole('button',{name:'丢弃修改并继续',exact:true}).click();
+ await expect(page).toHaveURL(/\/research\/market-data$/);
+ await page.locator('aside.v2-sidebar a.v2-nav-link[href="/research"]').click();
+ await expect(page.getByLabel('研究论点',{exact:true})).toHaveValue('');
+ await expect(page.getByRole('region',{name:'草稿恢复'})).toHaveCount(0);
+});

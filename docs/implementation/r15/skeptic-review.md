@@ -63,3 +63,19 @@ A dirty draft is protected by captured document link clicks and `beforeunload`. 
 Required correction: preserve and offer recovery of unsaved drafts across same-tab history navigation (for example session-scoped storage with a visible recovery decision), or implement tested history navigation protection. Add a real-browser case that navigates to research from another app route, edits a draft, presses Back and returns; the input must be recoverable. Any sensitive local persistence choice should remain scoped to this personal local research product and documented accurately.
 
 Until S15-06 is corrected or explicitly deferred as a known limitation, the broad claim “unsaved work cannot be lost through navigation” is not supported. The five initial findings are otherwise corrected at the source-review level; browser CI must still verify their actual behavior.
+
+## Third pass: history-navigation recovery
+
+Reviewed recovery correction `da9c3a9` directly from the integrated root branch. This is source-level verification; browser tests are owned by the root acceptance run.
+
+S15-06 is corrected at the source level for the intended same-tab history/reload journey:
+
+- Dirty note fields, market, horizon and baseline are written to versioned `sessionStorage`; re-entry restores the selected identity and notebook fields, while quotes remain empty until checked again.
+- Recovery validates market/horizon, identifier type, field lengths, baseline shape and dirty state. Invalid or clean recovery entries are removed instead of silently applied.
+- The visible recovery banner states that the draft is unsaved and offers a focus action; it does not label browser storage as a server save.
+- Successful save, editor reset and explicit discard clear the recovery slot. The explicit-discard navigation action does not mutate persistence dependencies afterward, so the discarded draft is not immediately re-created by the persistence effect.
+- Storage read/write failures show a warning, rather than claiming successful protection.
+
+Remaining scoped risks are acceptable as disclosed limitations of this personal local workspace: recovery belongs to the current browser tab/session and is not a durable backup; browser storage policies, tab closure and abrupt process termination can defeat it. There is one recoverable active draft, not a multi-document draft manager. A recovered edit of a server note is not an optimistic-concurrency mechanism; if the note was deleted or modified elsewhere, the server remains authoritative and a save can fail or replace a newer note. No claim of multi-user collaboration or conflict-free edits should be made.
+
+The source-level findings S15-01 through S15-06 now have correction paths. Final delivery still depends on the root's actual browser cases for history return, explicit discard, sidebar navigation, focus and identity consistency. This report does not certify those browser outcomes before they run.

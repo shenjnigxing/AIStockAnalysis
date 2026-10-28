@@ -31,3 +31,16 @@ This is a personal research workspace, not a validated recommendation engine. Ve
 ## Evidence
 
 Implementation, independent criticism, correction and test results are recorded below before delivery.
+
+## Corrections and local verification (2026-10-28)
+
+Independent product, data/API and skeptical-user reviews were performed separately from implementation. The skeptic found five issues in the first version, then a sixth browser-history gap. Corrections unify lookup/editor/evidence identity; protect sidebar navigation; clear old success notices before validation; focus and scroll the discard decision; and recover unsaved notes from validated per-tab session storage after Back/Forward navigation. Explicit discard and successful save remove that temporary draft. Storage can fail in restricted browsers; the UI reports that and server saving remains available.
+
+- Python API/unit suite: **286 passed** after the numerical-integrity correction.
+- Production Next build and TypeScript validation: passed with the recovery implementation.
+- Production dependency audit: 0 vulnerabilities reported during this iteration.
+- Actual Next operations handler security regression: passed.
+- Local standalone HTTP smoke was attempted but could not establish the runtime loopback connection; it is not counted as a successful integration test. CI runs the actual API notebook create/edit/reload/delete flow separately from mocked market fixture scenarios.
+- First browser CI: 8/9 passed; failure was an ambiguous alert locator also matching Next's route announcer. Application alert assertions were scoped, and further real-browser scenarios were added for manual lookup, sidebar navigation, invalid-save feedback and browser-history recovery.
+
+Visual evidence uses clearly labelled `TEST_FIXTURE_NOT_LIVE` data. It proves rendering/interactions, not live provider coverage. Latest browser results and visual inspection are appended when the acceptance run completes.
