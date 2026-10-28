@@ -4,3 +4,5 @@
 @media(max-width:650px){.rt{margin:0;padding:20px 12px}.rt-heading{display:block}.rt h1{font-size:23px}.rt-heading-tools{flex-direction:row;justify-content:space-between;margin-top:15px}.rt-heading p{font-size:11px}.rt-status-strip{gap:10px;flex-wrap:wrap}.rt-status-strip strong{margin-left:0}.rt-stat-grid{gap:8px;margin:13px 0}.rt-stat-grid>div{padding:12px}.rt-stat-grid strong{font-size:18px}.rt-detail{grid-template-columns:minmax(0,1fr)}.rt-table-tools{flex-wrap:wrap}.rt-table-tools input{flex-basis:100%}.rt-panel-head{flex-wrap:wrap;padding:12px}.rt-tabs{gap:11px!important}.rt-workflow{grid-template-columns:repeat(2,minmax(0,1fr))}.rt-workflow a:nth-child(2){border-right:0}.rt-workflow a:nth-child(-n+2){border-bottom:1px solid var(--rt-line)}.rt-sector-row{padding:12px}.rt-control label select{max-width:160px}}
 
 .rt-editor{border:0;margin:0;min-width:0}.rt-editor:disabled{opacity:.8}
+/* Explicit heading contrast: global legacy h1 uses dark ink on light pages. */
+.rt h1,.rt h2,.rt h3{color:var(--rt-text)}

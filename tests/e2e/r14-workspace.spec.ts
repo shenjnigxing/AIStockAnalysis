@@ -70,3 +70,9 @@ test('saving notes locks market and horizon until the response completes',async(
  await expect(page.getByLabel('研究周期',{exact:true})).toBeDisabled();
  release();await expect(page.getByRole('button',{name:'A 股',exact:true})).toBeEnabled();
 });
+
+test('terminal title uses readable light ink on its dark surface',async({page})=>{
+ await page.route('**/api/research/v3/watchlist',r=>r.fulfill({json:{items:[]}}));
+ await page.goto('/research');
+ expect(await page.getByRole('heading',{name:'市场观察与研究决策'}).evaluate(e=>getComputedStyle(e).color)).toBe('rgb(225, 234, 244)');
+});
