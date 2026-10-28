@@ -4,16 +4,24 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.services.backtest import BacktestService, BacktestDataUnavailableError
+from app.services.research_gate import ResearchEligibilityError, require_legacy_research_eligibility
+from app.services.backtest import BacktestService, BacktestDataUnavailableError, BacktestParameters
 
-router = APIRouter()
+def require_eligible_research():
+    try:
+        require_legacy_research_eligibility()
+    except ResearchEligibilityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+router = APIRouter(dependencies=[Depends(require_eligible_research)])
 
 
 @router.post("/run")
-def run_backtest(payload: dict, db: Session = Depends(get_db)) -> dict:
+def run_backtest(payload: BacktestParameters, db: Session = Depends(get_db)) -> dict:
     service = BacktestService(db)
     try:
-        job = service.run(payload)
+        job = service.run(payload.model_dump(mode="json"))
     except BacktestDataUnavailableError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc

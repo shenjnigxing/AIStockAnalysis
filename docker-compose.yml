@@ -1,3 +1,4 @@
+# Personal local stack: API, operator CLI and native Windows tools share ./data.
 services:
   api:
     build:
@@ -5,46 +6,27 @@ services:
       dockerfile: apps/api/Dockerfile
     env_file:
       - .env
+    environment:
+      DATABASE_URL: sqlite:////data/aistock.local.sqlite3
+      AISTOCK_NOTEBOOK_HOSTS: api
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
-      - ./apps/api:/app
-    depends_on:
-      - postgres
-      - redis
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    env_file:
-      - .env
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./apps/web:/app
-    depends_on:
-      - api
-
-  postgres:
-    image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      API_BASE_URL: http://api:8000
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
-volumes:
-  postgres_data:
-  redis_data:
-
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy

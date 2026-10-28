@@ -103,11 +103,10 @@ def _asset_risks(item: dict[str, Any], as_of: date) -> tuple[float, list[str], l
         days = (meta["expiry"] - as_of).days
         if days <= 10:
             blocks.append("期货合约临近到期或已到期，禁止生成候选")
-        if meta["margin_ratio"] > .2:
-            blocks.append("该期货保证金比例较高，当前实验不做推荐")
+        blocks.append("期货尚无头寸、账户权益与压力损失模型，暂不生成研究候选")
         if kind == "continuous":
             blocks.append("连续主力价格不能作为实际可交易合约")
-        penalty += min(24, meta["margin_ratio"] * 75)
+        # Margin percentage alone is not a monotonic measure of position risk.
         warnings.append("期货存在杠杆、逐日盯市、移仓及跳空强平风险，未计入真实成本")
     elif cls == "treasury":
         duration = meta["modified_duration"]

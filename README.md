@@ -1,4 +1,19 @@
-本窗口续作使用 `feat/windows-collection-review-r12`，合并上个窗口 R12 全部修改。统一使用根目录 `.venv`，新增持续采集与启动诊断，详见 [最新操作说明](docs/runbooks/windows-local.md)。
+# R15 · 联动研究工作台
+
+入口：http://localhost:3000/research 。当前版本支持市场快照浏览、标的联动、可交互采集轨迹、观察池筛选、服务器研究笔记与未保存草稿恢复。查看 [R15交付与验收记录](docs/implementation/r15/README.md)；安全整改基线见 [R14记录](docs/implementation/r14/README.md)。采集轨迹不是日K，研究分组来自用户笔记。真实推荐资格尚未通过时保持阻断。
+
+```powershell
+git fetch origin
+git switch feat/r14-remediation-workspace
+powershell -ExecutionPolicy Bypass -File infra/scripts/dev_bootstrap.ps1 -RunTests
+powershell -ExecutionPolicy Bypass -File infra/scripts/start_local.ps1
+```
+
+切分支前先保存自己的未提交改动；升级前备份 `data/aistock.local.sqlite3`。需要 Python 3.11/3.12、Node.js 22。新表自动创建，已有表不兼容会明确拒启动，不自动覆盖旧数据。管理权限与浏览器研究笔记分离，详见R14记录。
+
+---
+
+以下为历史版本说明；当前安装与启动使用上方 R15 分支命令。Windows 采集与故障排查另见 [操作说明](docs/runbooks/windows-local.md)。
 
 # AIStock R1.2 — 十角色审查后可本地验收版
 

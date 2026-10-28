@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 type OpsResponse = {
@@ -85,6 +85,8 @@ export function ApiActionFieldsForm({
   refreshAfterSuccess?: boolean;
 }) {
   const router = useRouter();
+  const submitting = useRef(false);
+  const [requestPending, setRequestPending] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<OpsResponse | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
@@ -103,8 +105,11 @@ export function ApiActionFieldsForm({
   const requestPath = useMemo(() => interpolatePath(pathTemplate || path, values), [path, pathTemplate, values]);
   const prettyResult = useMemo(() => (result ? JSON.stringify(result, null, 2) : ""), [result]);
 
+  const orderKey = useRef<{fingerprint:string;key:string}|null>(null);
   const submit = async () => {
+    if (submitting.current) return;
     setInputError(null);
+    setResult(null);
 
     for (const field of fields) {
       if (!field.required) continue;
@@ -116,6 +121,12 @@ export function ApiActionFieldsForm({
       }
     }
 
+    for (const field of fields) {
+      if (field.kind === "number" && !Number.isFinite(Number(values[field.name]))) {
+        setInputError(`字段「${field.label}」必须是有效数字。`);
+        return;
+      }
+    }
     const payload: Record<string, unknown> = {};
     for (const field of fields) {
       if (field.includeInPayload === false) continue;
@@ -124,9 +135,18 @@ export function ApiActionFieldsForm({
       setByPath(payload, field.payloadKey || field.name, normalized);
     }
 
+    const headers: Record<string,string> = {"Content-Type":"application/json"};
+    if (method === 'POST' && requestPath === '/api/paper/orders') {
+      const fingerprint = JSON.stringify(payload);
+      if (!orderKey.current || orderKey.current.fingerprint !== fingerprint) orderKey.current = {fingerprint,key:crypto.randomUUID()};
+      headers['Idempotency-Key'] = orderKey.current.key;
+    }
+    submitting.current = true;
+    setRequestPending(true);
+    try {
     const response = await fetch("/api/ops", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ path: requestPath, method, payload })
     });
     const body = (await response.json()) as OpsResponse;
@@ -135,6 +155,13 @@ export function ApiActionFieldsForm({
       startTransition(() => {
         router.refresh();
       });
+    }
+    } catch {
+      setResult(null);
+      setInputError("请求失败或结果未知，请先核对记录，不要重复提交。");
+    } finally {
+      submitting.current = false;
+      setRequestPending(false);
     }
   };
 
@@ -196,8 +223,8 @@ export function ApiActionFieldsForm({
         </div>
       ) : null}
       {inputError ? <p className="inputError">{inputError}</p> : null}
-      <button type="button" className="actionButton" onClick={submit} disabled={isPending}>
-        {isPending ? "执行中..." : buttonText}
+      <button type="button" className="actionButton" onClick={submit} disabled={isPending || requestPending}>
+        {isPending || requestPending ? "执行中..." : buttonText}
       </button>
       {result ? (
         <details>

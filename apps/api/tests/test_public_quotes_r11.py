@@ -187,7 +187,7 @@ def test_futures_clock_alone_does_not_create_overnight_trade_date(monkeypatch):
     monkeypatch.setenv("MARKET_DATA_MODE","real")
     monkeypatch.setitem(sys.modules,"akshare",SimpleNamespace(
         futures_zh_spot=lambda **kwargs: _frame([
-            {"symbol":"黄金2612","time":"224015","current_price":1076.2,"bid_price":1076.1}
+            {"symbol":"AU2612","time":"224015","current_price":1076.2,"bid_price":1076.1}
         ])
     ))
     result=fetch_public_quote("futures","AU2612")

@@ -4,6 +4,7 @@ const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     return [
+      { source: "/api/recommendation/latest", destination: `${backend}/api/recommendation/latest` },
       { source: "/api/research/v2/:path*", destination: `${backend}/api/research/v2/:path*` },
       { source: "/api/research/v3/:path*", destination: `${backend}/api/research/v3/:path*` }
     ];
