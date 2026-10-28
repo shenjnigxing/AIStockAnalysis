@@ -1,5 +1,7 @@
 import {test,expect} from '@playwright/test';
 test.beforeEach(async({page})=>{
+ await page.route('**/api/research/v3/market-data/overview?**',r=>r.fulfill({json:{items:[],rejected_count:0,can_trade:false}}));
+ await page.route('**/api/research/v3/market-data/history?**',r=>{const q=new URL(r.request().url()).searchParams;return r.fulfill({json:{kind:q.get('kind'),symbol:q.get('symbol'),points:[],basis:'collection_snapshots',can_trade:false}});});
  await page.route('**/api/research/v3/market-data/sources',r=>r.fulfill({json:{providers:[{kind:'us_equity',source_id:'fixture_source',has_cached_snapshot:false,last_attempt_state:'never',cooldown_seconds:90}]}}));
  await page.route('**/api/recommendation/latest',r=>r.fulfill({status:409,json:{detail:'Unverified dataset'}}));
 });

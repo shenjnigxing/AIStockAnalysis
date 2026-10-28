@@ -13,7 +13,7 @@ import re
 import threading
 import time
 from typing import Any
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.db.models import PublicQuoteSnapshot, PublicQuoteFetchAttempt
 from app.services.public_quote_sources import SOURCES, PublicQuoteSourceError, fetch_public_quote, source_spec, verify_futures_identity
@@ -126,6 +126,9 @@ def _last_attempt(db: Session, kind: str, symbol: str) -> PublicQuoteFetchAttemp
 
 def _verify(row: PublicQuoteSnapshot) -> None:
     """Detect accidental data/metadata edits before a cache value is exposed."""
+    if (not isinstance(row.value, (int, float)) or not math.isfinite(row.value)
+            or not 0 < row.value < 1_000_000_000):
+        raise QuoteIntegrityError("Cached quote has invalid numerical value")
     spec = source_spec(row.kind, row.symbol) if row.kind in SOURCES else None
     if not spec or row.source_id != spec["source_id"] or row.asset_class != spec["asset_class"] or row.product_type != spec["product_type"]:
         raise QuoteIntegrityError("Quote source identity changed")
@@ -192,6 +195,52 @@ def cached_quote(db: Session, *, kind: str, symbol: str) -> dict[str, Any] | Non
     validate_identity(kind, symbol)
     item = _last(db, kind, symbol)
     return _output(item, _now()) if item else None
+
+
+def quote_history(db: Session, *, kind: str, symbol: str, limit: int = 90) -> dict[str, Any]:
+    """Verified collection observations, deliberately not a market-price bar series."""
+    validate_identity(kind, symbol)
+    if not 2 <= limit <= 240:
+        raise ValueError("History limit must be between 2 and 240")
+    rows = list(db.scalars(select(PublicQuoteSnapshot).where(
+        PublicQuoteSnapshot.kind == kind, PublicQuoteSnapshot.symbol == symbol
+    ).order_by(PublicQuoteSnapshot.collected_at_utc.desc(),
+               PublicQuoteSnapshot.id.desc()).limit(limit)))
+    now = _now()
+    # One corrupt point rejects the whole history rather than silently drawing a gap.
+    points = [_output(row, now) for row in reversed(rows)]
+    return {"kind": kind, "symbol": symbol, "points": points,
+            "basis": "collection_snapshots", "can_trade": False}
+
+
+def quote_overview(db: Session, *, kind: str | None = None, limit: int = 100) -> dict[str, Any]:
+    """Latest published snapshot per instrument, with bounded rows materialized.
+
+    A corrupt latest snapshot is reported as rejected. We never fall back to an
+    older observation and make that appear to be the latest available quote.
+    """
+    if kind is not None and kind not in VALID_PATTERNS:
+        raise ValueError("Unsupported quote kind")
+    if not 1 <= limit <= 200:
+        raise ValueError("Overview limit must be between 1 and 200")
+    latest = select(func.max(PublicQuoteSnapshot.id).label("id"))
+    if kind is not None:
+        latest = latest.where(PublicQuoteSnapshot.kind == kind)
+    latest = latest.group_by(PublicQuoteSnapshot.kind, PublicQuoteSnapshot.symbol).subquery()
+    rows = db.scalars(select(PublicQuoteSnapshot).join(
+        latest, PublicQuoteSnapshot.id == latest.c.id
+    ).order_by(PublicQuoteSnapshot.collected_at_utc.desc(),
+               PublicQuoteSnapshot.id.desc()).limit(limit))
+    items = []
+    rejected = 0
+    now = _now()
+    for row in rows:
+        try:
+            validate_identity(row.kind, row.symbol)
+            items.append(_output(row, now))
+        except (QuoteIntegrityError, ValueError):
+            rejected += 1
+    return {"items": items, "rejected_count": rejected, "can_trade": False}
 
 
 def quote_status(db: Session) -> dict[str, Any]:

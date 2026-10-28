@@ -3,7 +3,7 @@ on:
   push:
     branches: [feat/r14-remediation-workspace]
   pull_request:
-    paths: ['apps/**', 'services/**', 'tests/e2e/r14*', '.github/workflows/r14-remediation.yml']
+    paths: ['apps/**', 'services/**', 'tests/e2e/r14*', 'tests/e2e/r15*', '.github/workflows/r14-remediation.yml']
 permissions:
   contents: read
 jobs:
@@ -34,7 +34,7 @@ jobs:
           for i in $(seq 1 30); do if curl -fsS http://127.0.0.1:8000/health; then exit 0; fi; sleep 1; done
           cat /tmp/api.log
           exit 1
-      - run: npx playwright test tests/e2e/r14-workspace.spec.ts tests/e2e/r14-notebook.integration.spec.ts
+      - run: npx playwright test tests/e2e/r14-workspace.spec.ts tests/e2e/r14-notebook.integration.spec.ts tests/e2e/r15-connected-workspace.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
