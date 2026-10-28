@@ -58,3 +58,26 @@ test('deletion requires confirmation and cancellation preserves the saved note',
  await page.getByRole('button',{name:'确认移除',exact:true}).click();
  await expect(page.getByRole('table').getByText('delete fixture',{exact:true})).toHaveCount(0);
 });
+test('manual lookup and application sidebar protect dirty notebook identity',async({page})=>{
+ await setup(page);await page.goto('/research');
+ await page.getByRole('button',{name:'查看 AAPL 市场快照',exact:true}).click();
+ await page.getByLabel('研究论点',{exact:true}).fill('保持 AAPL 草稿');
+ await page.getByLabel('检查标的代码',{exact:true}).fill('MSFT');
+ await page.getByRole('button',{name:'检查快照',exact:true}).click();
+ await expect(page.getByRole('alert')).toContainText('当前研究记录有未保存的修改');
+ await page.getByRole('button',{name:'返回编辑',exact:true}).click();
+ await expect(page.getByLabel('研究标的代码',{exact:true})).toHaveValue('AAPL');
+ await page.locator('aside.v2-sidebar a').first().click();
+ await expect(page).toHaveURL(/\/research$/);
+ await expect(page.getByRole('alert')).toContainText('当前研究记录有未保存的修改');
+ await page.getByRole('button',{name:'返回编辑',exact:true}).click();
+ await expect(page.getByLabel('研究论点',{exact:true})).toHaveValue('保持 AAPL 草稿');
+});
+test('invalid edit clears the previous save confirmation',async({page})=>{
+ await setup(page);await page.goto('/research');
+ await page.getByLabel('研究标的代码',{exact:true}).fill('AAPL');await page.getByLabel('研究论点',{exact:true}).fill('saved fixture');
+ await page.getByRole('button',{name:'保存研究记录',exact:true}).click();await expect(page.getByRole('status')).toContainText('研究记录已保存');
+ await page.getByLabel('研究论点',{exact:true}).fill('');await page.getByRole('button',{name:'保存研究记录',exact:true}).click();
+ await expect(page.getByText('研究记录已保存到服务器',{exact:true})).toHaveCount(0);
+ await expect(page.locator('.rt-editor [role=alert]')).toContainText('不能为空');
+});
