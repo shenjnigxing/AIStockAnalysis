@@ -1,3 +1,18 @@
+# R14 · 多市场研究工作台
+
+入口：http://localhost:3000/research 。本轮审查整改状态、验证证据与未完成能力见 [R14实现记录](docs/implementation/r14/README.md)。支持持久研究论点/反证/失效条件、多市场来源诊断与标的缓存核验。真实推荐资格尚未通过时保持阻断。
+
+```powershell
+git fetch origin
+git switch feat/r14-remediation-workspace
+powershell -ExecutionPolicy Bypass -File infra/scripts/dev_bootstrap.ps1 -RunTests
+powershell -ExecutionPolicy Bypass -File infra/scripts/start_local.ps1
+```
+
+切分支前先保存自己的未提交改动；升级前备份 `data/aistock.local.sqlite3`。需要 Python 3.11/3.12、Node.js 22。新表自动创建，已有表不兼容会明确拒启动，不自动覆盖旧数据。管理权限与浏览器研究笔记分离，详见R14记录。
+
+---
+
 本窗口续作使用 `feat/windows-collection-review-r12`，合并上个窗口 R12 全部修改。统一使用根目录 `.venv`，新增持续采集与启动诊断，详见 [最新操作说明](docs/runbooks/windows-local.md)。
 
 # AIStock R1.2 — 十角色审查后可本地验收版

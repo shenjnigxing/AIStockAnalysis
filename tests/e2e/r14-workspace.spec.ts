@@ -35,6 +35,7 @@ test('workspace saves thesis and reloads persisted server notes',async({page})=>
  await expect(page.getByRole('status')).toContainText('研究记录已保存');
  await page.reload();
  await expect(page.getByRole('table').getByText('修改后的测试论点',{exact:true})).toBeVisible();
+ await page.evaluate(()=>window.scrollTo(0,0));
  await page.screenshot({path:'test-results/r14-workspace-desktop.png',fullPage:true});
 });
 test('stale quote cannot overwrite a new selected market and mobile has no document overflow',async({page})=>{
