@@ -97,7 +97,7 @@ def test_real_backtest_insufficient_stored_bars_returns_conflict(monkeypatch):
     assert client.post("/api/backtest/run", json={"symbol": "600000"}).status_code == 409
 
 
-def test_real_backtest_uses_stored_bars_without_fallback(monkeypatch):
+def test_real_backtest_rejects_stored_bars_without_pit_qualification(monkeypatch):
     monkeypatch.setenv("MARKET_DATA_MODE", "real")
     with SessionLocal() as db:
         for n in range(25):
@@ -105,6 +105,7 @@ def test_real_backtest_uses_stored_bars_without_fallback(monkeypatch):
                             open=10, high=11, low=9, close=10, volume=100, amount=1000))
         db.commit()
     response = client.post("/api/backtest/run", json={"symbol": "600000"})
-    assert response.status_code == 200
-    curve = client.get(f"/api/backtest/equity/{response.json()['job_id']}").json()["items"]
-    assert len(curve) == 25
+    assert response.status_code == 409
+    with SessionLocal() as db:
+        assert db.scalar(select(BacktestJob.id)) is None
+        assert db.scalar(select(BacktestReport.id)) is None

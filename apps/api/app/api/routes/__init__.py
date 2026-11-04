@@ -42,3 +42,6 @@ api_router.include_router(notification_router, prefix="/api/notifications", tags
 api_router.include_router(settings_router, prefix="/api/settings", tags=["settings"])
 api_router.include_router(replay_router, prefix="/api/replay", tags=["replay"])
 api_router.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+
+from app.api.routes.watchlist import router as watchlist_router
+api_router.include_router(watchlist_router, prefix="/api/research/v3/watchlist", tags=["research-notebook"])

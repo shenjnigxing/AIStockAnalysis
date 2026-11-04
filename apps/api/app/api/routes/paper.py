@@ -1,5 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
+import os
+from hashlib import sha256
+import json
+from app.db.models import PaperIdempotency, PaperOrder
 
 from app.api.deps import get_db
 from app.services.paper_trading import PaperTradingService
@@ -7,29 +14,60 @@ from app.services.paper_trading import PaperTradingService
 router = APIRouter()
 
 
+class PaperOrderRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    symbol: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9_.-]+$")
+    side: Literal["buy", "sell"]
+    price: float = Field(gt=0, le=1_000_000, allow_inf_nan=False)
+    quantity: int = Field(gt=0, le=10_000_000, strict=True)
+    recommendation_level: Literal["A", "B", "C", "D"] = "C"
+
+
 @router.post("/order/preview")
-def paper_preview(payload: dict, db: Session = Depends(get_db)) -> dict:
-    service = PaperTradingService(db)
-    return service.preview_order(
-        symbol=payload["symbol"],
-        side=payload["side"],
-        price=float(payload["price"]),
-        quantity=int(payload["quantity"]),
-        recommendation_level=payload.get("recommendation_level", "C"),
-    )
+def paper_preview(payload: PaperOrderRequest, db: Session = Depends(get_db)) -> dict:
+    return PaperTradingService(db).preview_order(**payload.model_dump())
 
 
 @router.post("/orders")
-def paper_place(payload: dict, db: Session = Depends(get_db)) -> dict:
-    service = PaperTradingService(db)
-    order = service.place_order(
-        symbol=payload["symbol"],
-        side=payload["side"],
-        price=float(payload["price"]),
-        quantity=int(payload["quantity"]),
-        recommendation_level=payload.get("recommendation_level", "C"),
-    )
-    return {"order_id": order.id, "status": order.status}
+def paper_place(payload: PaperOrderRequest, db: Session = Depends(get_db),
+                idempotency_key: str | None = Header(default=None, min_length=1, max_length=128)) -> dict:
+    if not idempotency_key and not (os.getenv('APP_ENV') == 'test' and os.getenv('MARKET_DATA_MODE') == 'mock'):
+        raise HTTPException(422, 'Idempotency-Key required for paper order')
+    values = payload.model_dump()
+    digest = sha256(json.dumps(values, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    def prior_result():
+        previous = db.get(PaperIdempotency, idempotency_key)
+        if previous is None:
+            raise HTTPException(409, "Order reservation unavailable; inspect existing orders")
+        if previous.request_sha256 != digest:
+            raise HTTPException(409, "Idempotency key already used with different order")
+        order = db.get(PaperOrder, previous.order_id) if previous.order_id else None
+        if order is None:
+            raise HTTPException(409, "Order outcome not yet available")
+        return {"order_id": order.id, "status": order.status}
+    if idempotency_key and db.get(PaperIdempotency, idempotency_key):
+        return prior_result()
+    try:
+        reservation = None
+        if idempotency_key:
+            reservation = PaperIdempotency(key=idempotency_key, request_sha256=digest)
+            db.add(reservation)
+            try:
+                db.flush()  # unique key serializes competing claims across workers
+            except IntegrityError:
+                db.rollback()
+                return prior_result()
+        order = PaperTradingService(db, atomic=True).place_order(**values)
+        if reservation is not None:
+            reservation.order_id = order.id
+        db.commit()
+        return {"order_id": order.id, "status": order.status}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post("/orders/{order_id}/cancel")

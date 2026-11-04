@@ -52,7 +52,7 @@ function NavSection({ label, items, path }: { label: string; items: Item[]; path
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const path = usePathname();
   return (
-    <div className="v2-app-shell">
+    <div className={`v2-app-shell${path === "/research" ? " terminal-shell" : ""}`}>
       <a className="v2-skip" href="#main">跳转主要内容</a>
       <aside className="v2-sidebar" aria-label="主要导航">
         <Link href="/research" className="v2-brand">

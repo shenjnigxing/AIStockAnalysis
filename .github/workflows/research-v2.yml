@@ -9,7 +9,7 @@ on:
       - ".github/workflows/research-v2.yml"
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       DATABASE_URL: "sqlite:///:memory:"
     steps:
@@ -30,7 +30,7 @@ jobs:
       - name: Check v2 router registration
         run: python -c "from app.main import app; assert any(r.path == '/api/research/v2/evaluate' for r in app.routes)"
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       API_BASE_URL: "http://127.0.0.1:8000"
     steps:
@@ -50,7 +50,7 @@ jobs:
         working-directory: apps/web
         run: npm run build
   browser-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       API_BASE_URL: "http://127.0.0.1:8000"
     steps:
@@ -79,7 +79,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
   integrated-research:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       DATABASE_URL: "sqlite:///:memory:"
       API_BASE_URL: "http://127.0.0.1:8000"

@@ -3,6 +3,7 @@ import argparse
 import json
 import time
 from pathlib import Path
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.init_db import init_db
 from app.db.session import SessionLocal
@@ -34,15 +35,22 @@ def load_watchlist(path: Path) -> list[tuple[str, str]]:
 def collect_once(items: list[tuple[str, str]]) -> int:
     failures = 0
     for kind, symbol in items:
-        with SessionLocal() as db:
-            try:
-                result = refresh_quote(db, kind=kind, symbol=symbol)
-                print(json.dumps({"kind": kind, "symbol": symbol, "state": "cached" if result["cached"] else "collected",
-                                  "quote": result["quote"]}, ensure_ascii=True), flush=True)
-            except (QuoteBusy, QuoteUnavailable, QuoteIntegrityError) as exc:
-                failures += 1
-                print(json.dumps({"kind": kind, "symbol": symbol, "state": "unavailable",
-                                  "error": type(exc).__name__}), flush=True)
+        try:
+            with SessionLocal() as db:
+                try:
+                    result = refresh_quote(db, kind=kind, symbol=symbol)
+                    print(json.dumps({"kind": kind, "symbol": symbol, "state": "cached" if result["cached"] else "collected",
+                                      "quote": result["quote"]}, ensure_ascii=True), flush=True)
+                except SQLAlchemyError:
+                    try:
+                        db.rollback()
+                    except SQLAlchemyError:
+                        pass
+                    raise
+        except (QuoteBusy, QuoteUnavailable, QuoteIntegrityError, SQLAlchemyError) as exc:
+            failures += 1
+            print(json.dumps({"kind": kind, "symbol": symbol, "state": "unavailable",
+                              "error": type(exc).__name__}), flush=True)
     return failures
 
 

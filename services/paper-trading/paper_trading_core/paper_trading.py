@@ -10,19 +10,26 @@ from app.services.risk import RiskService
 
 
 class PaperTradingService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, *, atomic: bool = False) -> None:
         self.db = db
-        self.risk = RiskService(db)
+        self.atomic = atomic
+        self.risk = RiskService(db, atomic=atomic)
         self.commission_rate = 0.0003
         self.stamp_tax_rate = 0.001
         self.slippage_rate = 0.0008
+
+    def _persist(self) -> None:
+        if self.atomic:
+            self.db.flush()
+        else:
+            self.db.commit()
 
     def ensure_account(self) -> PaperAccount:
         account = self.db.scalar(select(PaperAccount).order_by(PaperAccount.id))
         if account is None:
             account = PaperAccount(account_name="default")
             self.db.add(account)
-            self.db.commit()
+            self._persist()
             self.db.refresh(account)
         return account
 
@@ -35,7 +42,7 @@ class PaperTradingService:
             action="paper.preview",
             detail=f"symbol={symbol}; side={side}; price={price}; quantity={quantity}; decision={result['decision']}",
         )
-        self.db.commit()
+        self._persist()
         return result
 
     def place_order(self, symbol: str, side: str, price: float, quantity: int, recommendation_level: str = "C") -> PaperOrder:
@@ -72,7 +79,7 @@ class PaperTradingService:
                 },
             )
             write_audit(self.db, action="paper.place", detail=f"order_id={order.id}; final_status=rejected")
-            self.db.commit()
+            self._persist()
             self.db.refresh(order)
             return order
         if preview["decision"] == "manual_review_required":
@@ -95,7 +102,7 @@ class PaperTradingService:
                 },
             )
             write_audit(self.db, action="paper.place", detail=f"order_id={order.id}; final_status=manual_review_required")
-            self.db.commit()
+            self._persist()
             self.db.refresh(order)
             return order
 
@@ -120,7 +127,7 @@ class PaperTradingService:
                 },
             )
             write_audit(self.db, action="paper.place", detail=f"order_id={order.id}; final_status=submitted")
-            self.db.commit()
+            self._persist()
             self.db.refresh(order)
             return order
 
@@ -143,7 +150,7 @@ class PaperTradingService:
             },
         )
         write_audit(self.db, action="paper.place", detail=f"order_id={order.id}; final_status=filled")
-        self.db.commit()
+        self._persist()
         self.db.refresh(order)
         return order
 
@@ -229,7 +236,7 @@ class PaperTradingService:
         order.status = "cancelled"
         order.updated_at = datetime.utcnow()
         write_audit(self.db, action="paper.cancel", detail=f"order_id={order.id}; status=cancelled")
-        self.db.commit()
+        self._persist()
         self.db.refresh(order)
         return order
 

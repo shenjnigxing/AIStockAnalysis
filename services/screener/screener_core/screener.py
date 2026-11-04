@@ -1,12 +1,34 @@
 import json
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from statistics import mean
 
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from app.services.research_gate import explicit_test_demo
+from app.db.models import StockMaster
 
 from app.db.models import DailyBar, RealtimeQuote, ScreenerCandidate, ScreenerPreset, ScreenerRun
+
+
+class ScreenerFilters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    min_change_pct: float = Field(default=-100, ge=-100, le=100, allow_inf_nan=False)
+    max_change_pct: float = Field(default=100, ge=-100, le=100, allow_inf_nan=False)
+    min_amount: float = Field(default=0, ge=0, allow_inf_nan=False)
+    min_price: float = Field(default=0, ge=0, allow_inf_nan=False)
+    max_price: float = Field(default=99999, gt=0, allow_inf_nan=False)
+    min_volume_ratio: float = Field(default=0, ge=0, allow_inf_nan=False)
+    max_volatility: float = Field(default=99, ge=0, allow_inf_nan=False)
+    exclude_symbols: list[str] = Field(default_factory=list, max_length=2000)
+    top_n: int = Field(default=100, ge=1, le=200)
+
+    @model_validator(mode="after")
+    def ranges(self):
+        if self.min_change_pct > self.max_change_pct or self.min_price > self.max_price:
+            raise ValueError("Minimum filter bound exceeds maximum")
+        return self
 
 
 def _as_float(value: object, default: float) -> float:
@@ -107,14 +129,44 @@ class ScreenerService:
         if quote.amount < max(500_000.0, min_amount * 0.8):
             risk_hints.append("low_liquidity")
         if float(features["volume_ratio"]) < 0.75:
-            risk_hints.append("weak_volume_support")
+            risk_hints.append("weak_volume")
         if float(features["amount_ratio"]) >= 3.0:
             risk_hints.append("turnover_overheat")
         if quote.price <= 0:
             risk_hints.append("invalid_quote")
         return risk_hints
 
+    def _eligible_quote(self, quote: RealtimeQuote) -> bool:
+        stock = self.db.scalar(select(StockMaster).where(StockMaster.symbol == quote.symbol))
+        if stock is not None and (not stock.is_active or "ST" in stock.name.upper() or "退" in stock.name):
+            return False
+        if not all(math.isfinite(v) for v in (quote.price, quote.amount, quote.volume, quote.change_pct)) or quote.price <= 0:
+            return False
+        if not explicit_test_demo():
+            if stock is None or not stock.name or not stock.market:
+                return False
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            quoted = quote.quote_time
+            if quoted.tzinfo is not None:
+                quoted = quoted.astimezone(timezone.utc).replace(tzinfo=None)
+            if not 0 <= (now - quoted).total_seconds() <= 300:
+                return False
+            bars = self._recent_daily_bars(quote.symbol)
+            if len(bars) < 20 or any(bar.trade_date > now.date() for bar in bars):
+                return False
+            if (now.date() - bars[0].trade_date).days > 7:
+                return False
+            if any(not all(math.isfinite(v) for v in (bar.open, bar.high, bar.low, bar.close, bar.volume, bar.amount))
+                   or min(bar.open, bar.high, bar.low, bar.close) <= 0
+                   or bar.low > min(bar.open, bar.close) or bar.high < max(bar.open, bar.close)
+                   or min(bar.volume, bar.amount) < 0 for bar in bars):
+                return False
+        return True
+
     def run(self, filters: dict, mode: str = "intraday") -> ScreenerRun:
+        filters = ScreenerFilters.model_validate(filters).model_dump()
+        if mode not in {"intraday", "daily"}:
+            raise ValueError("Unsupported screener mode")
         run = ScreenerRun(mode=mode, status="completed", filters_json=json.dumps(filters, ensure_ascii=True))
         self.db.add(run)
         self.db.flush()
@@ -137,7 +189,7 @@ class ScreenerService:
 
         ranked: list[tuple[RealtimeQuote, float, list[str], list[str], float]] = []
         for quote in latest_by_symbol.values():
-            if quote.symbol in exclude_symbols:
+            if quote.symbol in exclude_symbols or not self._eligible_quote(quote):
                 continue
             features = self._calc_features(quote)
             volatility = float(features["volatility"])
@@ -180,6 +232,7 @@ class ScreenerService:
         return list(self.db.scalars(select(ScreenerPreset).order_by(desc(ScreenerPreset.updated_at))).all())
 
     def create_preset(self, name: str, params: dict) -> ScreenerPreset:
+        params = ScreenerFilters.model_validate(params).model_dump()
         preset = self.db.scalar(select(ScreenerPreset).where(ScreenerPreset.name == name))
         if preset is None:
             preset = ScreenerPreset(name=name, params_json=json.dumps(params, ensure_ascii=True))
@@ -192,6 +245,7 @@ class ScreenerService:
         return preset
 
     def update_preset(self, preset_id: int, params: dict) -> ScreenerPreset | None:
+        params = ScreenerFilters.model_validate(params).model_dump()
         preset = self.db.get(ScreenerPreset, preset_id)
         if preset is None:
             return None
@@ -206,7 +260,15 @@ class ScreenerService:
         if run is None:
             return []
         stmt = select(ScreenerCandidate).where(ScreenerCandidate.screener_run_id == run.id).order_by(ScreenerCandidate.rank_no)
-        return list(self.db.scalars(stmt).all())
+        rows = list(self.db.scalars(stmt).all())
+        if explicit_test_demo():
+            return rows
+        accepted = []
+        for row in rows:
+            quote = self.db.scalar(select(RealtimeQuote).where(RealtimeQuote.symbol == row.symbol).order_by(desc(RealtimeQuote.quote_time)).limit(1))
+            if quote is not None and self._eligible_quote(quote):
+                accepted.append(row)
+        return accepted
 
     def top100(self) -> list[ScreenerCandidate]:
         return self.latest_candidates()[:100]

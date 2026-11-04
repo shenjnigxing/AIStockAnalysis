@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import "./market-data.css";
 type Provider={kind:string;source_id:string;metric:string;unit:string;currency:string;cooldown_seconds:number;has_cached_snapshot:boolean;last_collected_at_utc:string|null;last_attempt_state:string;last_attempt_at_utc:string|null;last_error_code:string|null};
 type Account={provider:string;display_name:string;account_type:string;connection_mode:string;automatic_connection:boolean;supported_product_classes:string[]};
@@ -22,6 +22,7 @@ const STATUS:Record<string,string>={
  bar_timestamped:"分钟K线时间（非实时逐笔）",
 };
 export default function PublicMarketDataPage(){
+  const requestId=useRef(0);
   const [providers,setProviders]=useState<Provider[]>([]);
   const [accounts,setAccounts]=useState<Account[]>([]);
   const [kind,setKind]=useState("us_equity");
@@ -45,6 +46,7 @@ export default function PublicMarketDataPage(){
     return ()=>{active=false};
   },[]);
   async function checkQuote(){
+    const id=++requestId.current;
     setQuote(null);setError("");setChecking(true);
     try{
       if(!symbol.trim())throw new Error("请填写已由交易所或交易平台实际支持的产品代码");
@@ -52,9 +54,14 @@ export default function PublicMarketDataPage(){
       const response=await fetch("/api/research/v3/market-data/quote?"+params,{cache:"no-store"});
       if(response.status===404)throw new Error("尚无已采集的本地快照；请先在本机运行下方采集命令，再查询");
       if(!response.ok)throw new Error(response.status===409?"缓存一致性验证失败，数据已被阻断":"标的代码或缓存状态无效");
-      setQuote(await response.json() as Quote);
-    }catch(e){setError(e instanceof Error?e.message:"无法读取行情");}
-    finally{setChecking(false);}
+      const data=await response.json() as Quote;
+      if(id!==requestId.current)return;
+      if(data.kind!==kind || data.symbol!==symbol.trim())throw new Error("返回标的身份不匹配，已阻断");
+      setQuote(data);
+      const status=await fetch("/api/research/v3/market-data/sources",{cache:"no-store"});
+      if(status.ok && id===requestId.current)setProviders((await status.json()).providers??[]);
+    }catch(e){if(id===requestId.current)setError(e instanceof Error?e.message:"无法读取行情");}
+    finally{if(id===requestId.current)setChecking(false);}
   }
   return <main className="md-terminal">
     <div className="md-nav"><Link href="/research/assets">← 多资产研究</Link> / 行情数据源与账户</div>
@@ -81,9 +88,9 @@ export default function PublicMarketDataPage(){
         <pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>powershell -ExecutionPolicy Bypass -File infra/scripts/collect_quotes.ps1</pre>
         <p>观察清单：infra/scripts/quotes-watchlist.example.json；持续运行参数：-Interval 60 -Cycles 60。源不可用时保留旧缓存并报错。</p>
       </details>
-      <div className="md-form"><label>资产市场<select value={kind} onChange={e=>{const next=e.target.value;setKind(next);setSymbol(PRESETS[next]??"");setQuote(null);setError("");}}>
+      <div className="md-form"><label>资产市场<select value={kind} onChange={e=>{requestId.current++;setChecking(false);const next=e.target.value;setKind(next);setSymbol(PRESETS[next]??"");setQuote(null);setError("");}}>
         {Object.keys(LABELS).map(k=><option key={k} value={k}>{LABELS[k]}</option>)}</select></label>
-        <label>标的代码<input value={symbol} onChange={e=>setSymbol(e.target.value)} maxLength={32} placeholder="输入实际交易品种代码"/></label>
+        <label>标的代码<input value={symbol} onChange={e=>{requestId.current++;setChecking(false);setQuote(null);setError("");setSymbol(e.target.value);}} maxLength={32} placeholder="输入实际交易品种代码"/></label>
         <button type="button" disabled={checking} onClick={()=>void checkQuote()}>{checking?"查询中…":"查看本地快照"}</button>
       </div>
       {quote&&<div className="md-quote" role="status"><strong>{quote.symbol}</strong><b>{quote.value} <small>{quote.unit}</small></b>

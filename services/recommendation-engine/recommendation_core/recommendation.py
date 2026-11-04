@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import DailyBar, RecommendationResult, RecommendationRun, ScreenerRun, ScreenerCandidate, StrategyDefinition, StrategyRun, StrategySignal, RealtimeQuote
 from app.services.audit import write_audit
+from app.services.research_gate import require_legacy_research_eligibility
 from app.services.llm_explainer import get_llm_explainer
 from app.services.replay_link import append_replay_record
 from app.services.strategy_engine import StrategyRegistry
@@ -47,7 +48,7 @@ def _risk_from_tags(tags: list[str], market_state: str) -> tuple[float, list[str
     if "low_liquidity" in tags:
         score += 10.0
         reasons.append("流动性不足")
-    if "weak_volume" in tags:
+    if "weak_volume" in tags or "weak_volume_support" in tags:
         score += 6.0
         reasons.append("成交量支撑偏弱")
     if "market_state_conflict" in tags:
@@ -114,17 +115,8 @@ class RecommendationService:
         return result
 
     def _action_suggestion(self, level: str, market_state: str, risk_score: float) -> str:
-        if level == "A" and risk_score <= 20:
-            return "execute"
-        if level == "A":
-            return "execute_with_caution"
-        if level == "B" and market_state in {"bullish", "neutral"}:
-            return "watch_breakout"
-        if level == "B":
-            return "observe"
-        if level == "C":
-            return "research"
-        return "avoid"
+        # Even explicit test fixtures never produce a trading instruction.
+        return "demo_research" if level in {"A", "B", "C"} else "avoid"
 
     @dataclass
     class RunMeta:
@@ -132,6 +124,7 @@ class RecommendationService:
         llm_degraded_count: int
 
     def run(self, market_state: str = "neutral", llm_enabled: bool = False, llm_provider: str | None = None) -> tuple[RecommendationRun, RunMeta]:
+        require_legacy_research_eligibility()
         run = RecommendationRun(status="completed", market_state=market_state)
         self.db.add(run)
         self.db.flush()
@@ -316,6 +309,7 @@ class RecommendationService:
         return run, RecommendationService.RunMeta(llm_provider=llm_name, llm_degraded_count=llm_degraded_count)
 
     def latest(self) -> list[RecommendationResult]:
+        require_legacy_research_eligibility()
         run = self.db.scalar(select(RecommendationRun).order_by(desc(RecommendationRun.created_at)))
         if run is None:
             return []

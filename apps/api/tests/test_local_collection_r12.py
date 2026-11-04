@@ -77,7 +77,7 @@ def test_futures_market_route(monkeypatch,symbol,market):
     class Frame:
         empty=False
         def __len__(self): return 1
-        def iterrows(self): return iter([(0,{'current_price':100,'time':'123000'})])
+        def iterrows(self): return iter([(0,{'symbol':symbol,'current_price':100,'time':'123000'})])
     def spot(**kw):
         calls.append(kw)
         return Frame()

@@ -180,7 +180,7 @@ export default function SectorResearchPage() {
           </section>
           <section className="sector-detail-card">
             <div className="sector-card-heading"><div><small>04 / FACTOR ATTRIBUTION</small><h2>因子解释</h2></div><span>{current?.sector_id}</span></div>
-            {current && <><div className="sector-detail-title"><strong>{current.sector_name}</strong><div><b>{current.score.toFixed(1)}</b><span>/ 100 研究强度</span></div></div>
+            {current && <><Link href={`/research?${new URLSearchParams({sector:current.sector_name,context_source:response.source_grade})}`} className="sector-link-button">带入研究工作台 →</Link><p className="sector-risk-empty">仅交接行业研究上下文；成分股与实际行情仍需核验。</p><div className="sector-detail-title"><strong>{current.sector_name}</strong><div><b>{current.score.toFixed(1)}</b><span>/ 100 研究强度</span></div></div>
               {Object.entries(current.factors).map(([key,score]) => <div key={key} className="sector-factor">
                 <div><span>{FACTOR_LABELS[key] ?? key}</span><b>{score.toFixed(1)}</b></div><div className="sector-track"><i style={{width: Math.max(0,Math.min(100,score)) + "%"}}/></div>
               </div>)}

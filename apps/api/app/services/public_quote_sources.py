@@ -51,6 +51,26 @@ SOURCES = {
 }
 
 
+def source_spec(kind: str, symbol: str) -> dict[str, Any]:
+    """Units belong to the instrument, not just the provider category."""
+    spec = dict(SOURCES[kind])
+    if kind == "sge_gold":
+        if symbol not in {"Au99.99", "Au99.95", "Ag99.99"}:
+            raise PublicQuoteSourceError("Unsupported SGE instrument")
+        spec["unit"] = "CNY/kg" if symbol == "Ag99.99" else "CNY/g"
+    return spec
+
+
+def verify_futures_identity(row: dict[str, Any], symbol: str) -> None:
+    # The Sina adapter may expose only a Chinese display name. Without a verified
+    # contract directory that name is insufficient: do not infer codes/months.
+    identities = [str(row[key]).strip().upper() for key in
+                  ("contract", "instId", "code", "symbol") if row.get(key)]
+    coded = [v for v in identities if re.fullmatch(r"[A-Z]{1,2}[0-9]{3,4}", v)]
+    if not coded or any(value != symbol for value in coded):
+        raise PublicQuoteSourceError("Futures contract identity unverified or mismatched")
+
+
 def _number(value: Any) -> float:
     try:
         val = float(str(value).replace(",", "").strip())
@@ -151,9 +171,9 @@ def fetch_public_quote(kind: str, symbol: str) -> dict[str, Any]:
             if len(rows) != 1:
                 raise PublicQuoteSourceError("Futures provider did not return one contract")
             row = rows[0]
+            verify_futures_identity(row, symbol)
             value = _number(_get(row, "current_price"))
-            # The provider often sends only an HHMMSS clock or Chinese contract label.
-            # Do not invent the exchange trading date or assert exact contract identity.
+            # Clock alone does not establish the overnight exchange trading date.
             display = str(row.get("time", "")).strip()
             source_at = None
             record = row

@@ -8,6 +8,8 @@ type RecommendationSnapshot = {
   total_score: number;
   final_rank: number;
   action_suggestion: string;
+  reasons?: string[];counter_arguments?: string[];risk_tags?: string[];llm_explanation?: string;
+  confidence_level?: number | null; source_grade?: string; as_of?: string;
 };
 
 export default async function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
@@ -50,6 +52,10 @@ export default async function StockDetailPage({ params }: { params: Promise<{ sy
           </table>
         )}
       </div>
+      <section className="card"><h2>来源与研究证据</h2><p>来源等级：{recommendation?.source_grade||"未核验"}；分析时点：{recommendation?.as_of||"缺失"}；置信度：{recommendation?.confidence_level==null?"未校准":`${recommendation.confidence_level}（旧版指标，非获利概率）`}</p>
+      <h3>支持理由</h3><ul>{recommendation?.reasons?.map((x,i)=><li key={i}>{x}</li>)}</ul>
+      <h3>反证</h3>{recommendation?.counter_arguments?.length?<ul>{recommendation.counter_arguments.map((x,i)=><li key={i}>{x}</li>)}</ul>:<p>没有可核验反证资料，不代表没有风险。</p>}
+      <h3>风险标记</h3><p>{recommendation?.risk_tags?.join(" / ")||"风险资料缺失"}</p><p>{recommendation?.llm_explanation||"尚无解释文本；模型解释不替代原始证据。"}</p></section>
     </main>
   );
 }
