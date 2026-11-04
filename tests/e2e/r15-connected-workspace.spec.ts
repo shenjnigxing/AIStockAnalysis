@@ -46,6 +46,8 @@ test('dirty changes need explicit discard and sparse history never draws a trend
  await expect(page.getByLabel('查看采集快照')).toHaveCount(0);
  await page.setViewportSize({width:390,height:844});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ const quoteBox=await page.locator('.rt-quote-panel').boundingBox(),noteBox=await page.locator('.rt-notebook-panel').boundingBox(),watchBox=await page.locator('.rt-watch-panel').boundingBox();
+ expect(quoteBox!.y).toBeLessThan(noteBox!.y);expect(noteBox!.y).toBeLessThan(watchBox!.y);
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'test-results/r15-connected-mobile-fixture.png',fullPage:true});
 });
 test('deletion requires confirmation and cancellation preserves the saved note',async({page})=>{
