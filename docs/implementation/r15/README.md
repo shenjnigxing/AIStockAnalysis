@@ -44,3 +44,25 @@ Independent product, data/API and skeptical-user reviews were performed separate
 - First browser CI: 8/9 passed; failure was an ambiguous alert locator also matching Next's route announcer. Application alert assertions were scoped, and further real-browser scenarios were added for manual lookup, sidebar navigation, invalid-save feedback and browser-history recovery.
 
 Visual evidence uses clearly labelled `TEST_FIXTURE_NOT_LIVE` data. It proves rendering/interactions, not live provider coverage. Latest browser results and visual inspection are appended when the acceptance run completes.
+
+## Delivery verification update (2026-11-04)
+
+The completed acceptance run [40686828044](https://github.com/shenjnigxing/AIStockAnalysis/actions/runs/40686828044) validated commit `2dfbcfbd9165df57bfe16c0eb07c4d9af3a54b91`: **286 API/unit tests and 13 browser tests passed**, including the actual API notebook flow and explicit-discard recovery regression. Production build, operations-handler security checks and dependency audit also passed in that run.
+
+Desktop and 390px mobile screenshots were inspected. The desktop connects the selected instrument, source-labelled quote, interactive observation trace and saved thesis. The initial mobile order placed the editor too far below other panels; the final mobile adjustment places selected evidence and the notebook before category/watchlist/workflow panels. The mobile acceptance asserts this order and checks document overflow. No price data was invented to fill empty states. Browser screenshots use labelled fixtures, while the notebook integration uses the actual API.
+
+Temporary draft recovery is scoped to one browser tab and is not a backup, multi-draft store or concurrent-edit merge. Source-cache history remains a collection-observation trace, not exchange OHLC. The overview loads at most 100 instruments in the UI; a missing row does not prove a missing database quote. SQL output bounds are not a constant-time guarantee on large histories.
+
+The final mobile-adjusted build is revalidated in [41767952990](https://github.com/shenjnigxing/AIStockAnalysis/actions/runs/41767952990); final outcome is recorded below after completion.
+
+### Final acceptance result
+
+**Passed**: [41768135638](https://github.com/shenjnigxing/AIStockAnalysis/actions/runs/41768135638), validated commit `3b7805ba89e4b5148a1ce51ae996db8a7b7d4151`.
+
+- 286 API/unit tests passed.
+- 14 Chromium browser tests passed, including the actual notebook API, desktop/mobile layouts, stale-response isolation, keyboard point inspection, draft/discard/history recovery, deletion confirmation, failure feedback and combined category/search/horizon/incomplete-note filters.
+- Production build, type validation, operations-handler security test and production dependency audit passed.
+- Mobile-adjusted screenshots were downloaded and inspected from successful run 41767952990; its application code matches the final acceptance run. Selected quote, trajectory and notebook appear before categories/watchlist on mobile, with no document overflow in the acceptance scenario.
+- Windows startup for the mobile-adjusted application also passed: [41767953004](https://github.com/shenjnigxing/AIStockAnalysis/actions/runs/41767953004).
+
+The repository delivery remains a draft PR. This evidence establishes the scoped research-workspace behavior; it does not certify live provider stability, financial data coverage or investment returns.
