@@ -5,6 +5,7 @@
 ```powershell
 git fetch origin
 git switch feat/r14-remediation-workspace
+git pull --ff-only origin feat/r14-remediation-workspace
 powershell -ExecutionPolicy Bypass -File infra/scripts/dev_bootstrap.ps1 -RunTests
 powershell -ExecutionPolicy Bypass -File infra/scripts/start_local.ps1
 ```

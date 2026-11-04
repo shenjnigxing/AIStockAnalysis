@@ -104,3 +104,18 @@ test('explicitly discarded draft is not recovered on a later visit',async({page}
  await expect(page.getByLabel('研究论点',{exact:true})).toHaveValue('');
  await expect(page.getByRole('region',{name:'草稿恢复'})).toHaveCount(0);
 });
+test('review status, user category, search and research horizon filter the same notes',async({page})=>{
+ await setup(page);
+ const base={kind:'us_equity',updated_at:'2026-10-28T03:00:00Z'};
+ const items=[{...base,id:1,symbol:'AAPL',horizon:'medium_long',sector:'科技',thesis:'待补反证',counter_thesis:'',invalidation:''},{...base,id:2,symbol:'MSFT',horizon:'medium_long',sector:'工业',thesis:'完整研究',counter_thesis:'反证',invalidation:'失效条件'},{...base,id:3,symbol:'GOOG',horizon:'short',sector:'科技',thesis:'短期研究',counter_thesis:'',invalidation:''}];
+ await page.route('**/api/research/v3/watchlist',r=>r.fulfill({json:{items}}));
+ await page.goto('/research');const table=page.getByRole('table',{name:'研究观察池'});
+ await expect(table.getByRole('button',{name:/^AAPL/})).toBeVisible();await expect(table.getByRole('button',{name:/^MSFT/})).toBeVisible();
+ await page.getByRole('button',{name:'待完善 1',exact:true}).click();
+ await expect(table.getByRole('button',{name:/^MSFT/})).toHaveCount(0);
+ await page.locator('.rt-group-panel').getByRole('button',{name:/科技/}).click();
+ await page.getByLabel('搜索研究记录',{exact:true}).fill('MSFT');await expect(table.locator('tbody tr')).toHaveCount(0);
+ await page.getByLabel('搜索研究记录',{exact:true}).fill('');await expect(table.getByRole('button',{name:/^AAPL/})).toBeVisible();
+ await page.getByLabel('研究周期',{exact:true}).selectOption('short');
+ await expect(table.getByRole('button',{name:/^GOOG/})).toBeVisible();await expect(table.getByRole('button',{name:/^AAPL/})).toHaveCount(0);
+});
