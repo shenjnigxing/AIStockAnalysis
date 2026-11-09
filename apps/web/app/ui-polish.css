@@ -1,0 +1,100 @@
+/* AIStock UI polish R16 — a cohesive research-terminal design layer.
+ * Scoped to the v2 shell: legacy pages keep their own functional structure.
+ * No simulated quotes, returns, or recommendations are introduced. */
+.v2-app-shell{
+ --ui-canvas:#0b1421;--ui-sidebar:#0d1929;--ui-panel:#121f30;
+ --ui-elevated:#18283b;--ui-stroke:#293d52;--ui-ink:#e7eff8;
+ --ui-muted:#a5b8ca;--ui-accent:#65e3bf;--ui-focus:#9cf7dc;
+ background:var(--ui-canvas);color:var(--ui-ink);
+ font-family:Inter,"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+ font-variant-numeric:tabular-nums;
+}
+.v2-app-shell .v2-sidebar{background:var(--ui-sidebar);border-right:1px solid var(--ui-stroke);z-index:5}
+.v2-app-shell .v2-brand{height:80px;border-bottom-color:var(--ui-stroke)}
+.v2-app-shell .v2-brand-mark{border-radius:11px;background:linear-gradient(135deg,#8bf3d4,#37b995);box-shadow:0 8px 24px #32d3a329}
+.v2-app-shell .v2-brand-name small{color:#a9bed2;letter-spacing:1.3px}
+.v2-app-shell .v2-navigation{padding-top:22px;scrollbar-color:#38536a transparent}
+.v2-app-shell .v2-nav-label{font-size:10px;letter-spacing:1.1px;color:#92a7be}
+.v2-app-shell .v2-nav-link{min-height:40px;font-size:12.5px;color:#b6c9db;border:1px solid transparent;transition:background .17s,border-color .17s,color .17s}
+.v2-app-shell .v2-nav-link:hover{background:#1b3044;color:#fff;border-color:#345169}
+.v2-app-shell .v2-nav-link.active{color:#9cf7dc;border-color:#336555;background:linear-gradient(90deg,#1c4039,#1a2d3e);box-shadow:inset 3px 0 0 #64e1bc}
+.v2-app-shell .v2-sidebar-footer{color:#b2c4d3;border-top-color:var(--ui-stroke)}
+.v2-app-shell .v2-header{height:70px;padding:0 clamp(18px,3vw,44px);background:#101d2c;border-bottom:1px solid var(--ui-stroke)}
+.v2-app-shell .v2-header-trail{font-size:12px;color:#d5e2ee}
+.v2-app-shell .v2-header-pill{border:1px solid #315b50;background:#193c32;color:#9cf1d0}
+.v2-app-shell .v2-data-link{color:#b2d9e4}
+.v2-app-shell .v2-stage{min-width:0;background:var(--ui-canvas)}
+.v2-app-shell .v2-stage-content{min-width:0;overflow-x:clip}
+.v2-app-shell :is(a,button,input,select,textarea,summary):focus-visible{outline:3px solid var(--ui-focus);outline-offset:3px}
+.v2-app-shell button{transition:background-color .15s,border-color .15s,color .15s,box-shadow .15s}
+.v2-app-shell button:not(:disabled):active{transform:translateY(1px)}
+.v2-app-shell .rt{background:transparent;padding:clamp(18px,2.5vw,38px);max-width:1900px;margin:auto;min-height:calc(100vh - 70px);font-size:13px}
+.v2-app-shell .rt-heading{align-items:flex-end;margin-bottom:26px}
+.v2-app-shell .rt-eyebrow{font-size:11px;letter-spacing:1.55px;color:#8be4c6}
+.v2-app-shell .rt h1{font-family:Inter,"Noto Sans SC",system-ui,sans-serif;font-weight:750;font-size:clamp(25px,2.2vw,35px);letter-spacing:-.7px;line-height:1.25;margin:9px 0}
+.v2-app-shell .rt-heading p{color:#b2c6d8;font-size:13px;line-height:1.7}
+.v2-app-shell .rt-heading-tools a,.v2-app-shell .rt-heading-tools button{display:inline-flex;align-items:center;min-height:38px;padding:9px 14px;border:1px solid #36546b;border-radius:9px;background:#17283b;color:#d8e8f3;font-weight:600;text-decoration:none}
+.v2-app-shell .rt-heading-tools a:hover,.v2-app-shell .rt-heading-tools button:hover{border-color:#69c2ab;background:#1d3b42;color:#b2f7df}
+.v2-app-shell .rt-control{border:1px solid #2b4156;background:#111f30;border-radius:12px;padding:12px 14px}
+.v2-app-shell .rt-markets button{min-height:35px;padding:8px 12px;border-radius:7px;color:#c1d1de}
+.v2-app-shell .rt-markets button.active{background:#235144;color:#baffdf;border-color:#387963;font-weight:700}
+.v2-app-shell .rt-status-strip{border-radius:10px;background:#142b29;border-color:#2a5750;padding:12px 16px;color:#b5d8cb;flex-wrap:wrap;line-height:1.5}
+.v2-app-shell .rt-status-strip strong{color:#f1d392}
+.v2-app-shell .rt-stat-grid{gap:14px;margin:18px 0 20px}
+.v2-app-shell .rt-stat-grid>div,.v2-app-shell .rt-stat-grid>.rt-review-stat{padding:18px 19px;background:linear-gradient(160deg,#17283b,#112031);border:1px solid #30465b;border-radius:12px;box-shadow:0 8px 24px #00000016}
+.v2-app-shell .rt-stat-grid strong{font-size:clamp(20px,1.9vw,28px);font-weight:730;letter-spacing:-.5px}
+.v2-app-shell .rt-stat-grid small{font-size:11px;line-height:1.55;color:#afc2d2}
+.v2-app-shell .rt-stat-grid span{font-size:10.5px;color:#b5c8d9}
+.v2-app-shell .rt-panel{border-radius:12px;background:#132235;border-color:#30455b;box-shadow:0 12px 28px #00000012}
+.v2-app-shell .rt-panel-head{padding:17px 19px;min-height:59px}
+.v2-app-shell .rt h2{font-size:14px;font-weight:700}
+.v2-app-shell .rt-table-tools{padding:15px 18px;flex-wrap:wrap}
+.v2-app-shell .rt-table-tools input{min-width:150px}
+.v2-app-shell .rt input,.v2-app-shell .rt select,.v2-app-shell .rt textarea{border-radius:8px;min-height:37px;border-color:#40566b;background:#0c1928;color:#eaf4fb}
+.v2-app-shell .rt input::placeholder,.v2-app-shell .rt textarea::placeholder{color:#91a7bd}
+.v2-app-shell .rt th{background:#0f1d2d;font-size:10.5px;color:#afc2d6}
+.v2-app-shell .rt td{font-size:12px;border-top-color:#293e54}
+.v2-app-shell .rt tbody tr:hover{background:#20374c}
+.v2-app-shell .rt-empty p,.v2-app-shell .rt-note{font-size:12px;line-height:1.65}
+.v2-app-shell .rt button{min-height:34px;border-radius:8px}
+.v2-app-shell .rt .rt-badge{font-size:10px}
+.v2-app-shell .rt-grid{gap:18px}
+.v2-app-shell .rt-main,.v2-app-shell .rt-detail{gap:18px}
+.v2-app-shell .rt-footer{color:#9db1c4}
+.v2-app-shell .asset-page{background:transparent;color:var(--ui-ink)}
+/* The multi-asset page remains light inside its own panels; provide a deliberate
+   light analysis surface rather than inheriting unreadable dark text tokens. */
+.v2-app-shell .asset-page{background:#f2f6f9;border-radius:16px;margin:20px;overflow:hidden}
+.v2-app-shell .asset-page :is(h1,h2,h3){font-family:Inter,"Noto Sans SC",system-ui,sans-serif}
+.v2-app-shell .asset-page button:focus-visible,.v2-app-shell .asset-page a:focus-visible{outline-color:#116b60}
+@media(max-width:1200px){
+ .v2-app-shell .rt-grid{grid-template-columns:minmax(0,1fr)}
+ .v2-app-shell .rt-detail{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:960px){
+ .v2-app-shell .v2-sidebar{position:relative;min-height:0;height:auto;border-right:0;border-bottom:1px solid var(--ui-stroke)}
+ .v2-app-shell .v2-brand{height:60px}
+ .v2-app-shell .v2-navigation{padding:8px 10px;overscroll-behavior-x:contain}
+ .v2-app-shell .v2-nav-link{min-height:36px}
+ .v2-app-shell .v2-header{height:56px}
+ .v2-app-shell .rt{min-height:calc(100vh - 56px)}
+}
+@media(max-width:720px){
+ .v2-app-shell .rt{padding:18px 12px}
+ .v2-app-shell .rt-heading{align-items:stretch;display:block}
+ .v2-app-shell .rt-heading-tools{flex-direction:row;justify-content:flex-start;flex-wrap:wrap;margin-top:15px;white-space:normal}
+ .v2-app-shell .rt-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .v2-app-shell .rt-stat-grid>div,.v2-app-shell .rt-stat-grid>.rt-review-stat{padding:12px}
+ .v2-app-shell .rt-detail{grid-template-columns:minmax(0,1fr)}
+ .v2-app-shell .rt-control{align-items:stretch}
+ .v2-app-shell .asset-page{margin:10px;border-radius:12px}
+}
+@media(max-width:420px){
+ .v2-app-shell .rt-stat-grid{grid-template-columns:1fr}
+ .v2-app-shell .v2-header{padding:0 12px}
+ .v2-app-shell .rt-markets{gap:3px}
+ .v2-app-shell .rt-markets button{font-size:11px;padding:7px 9px}
+}
+@media(prefers-reduced-motion:reduce){
+ .v2-app-shell *, .v2-app-shell *::before,.v2-app-shell *::after{transition-duration:.01ms!important;animation-duration:.01ms!important;scroll-behavior:auto!important}
+}
